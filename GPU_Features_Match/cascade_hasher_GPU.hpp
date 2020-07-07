@@ -225,7 +225,7 @@ namespace openMVG {
 			template <typename MatrixT>
 			void CreateHashedDescriptions
 			(
-				const std::vector<MatrixT> & descriptions,
+				const std::vector<MatrixT> & vec_descriptions,
 				const Eigen::VectorXf & zero_mean_descriptor,
 				std::map<IndexT, HashedDescriptions>  & hashed_descriptions
 			) const
@@ -233,6 +233,8 @@ namespace openMVG {
 				// Steps:
 				//   1) Compute hash code and hash buckets (based on the zero_mean_descriptor).
 				//   2) Construct buckets.
+
+
 
 				//HashedDescriptions hashed_descriptions;
 				if (descriptions.rows() == 0) {
