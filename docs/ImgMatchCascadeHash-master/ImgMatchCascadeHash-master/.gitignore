@@ -1,0 +1,7 @@
+*.sln
+*.db
+Debug/
+test_dir/
+x64/
+
+

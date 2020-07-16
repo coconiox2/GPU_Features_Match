@@ -20,6 +20,15 @@ namespace openMVG { namespace sfm { struct Regions_Provider; } }
 namespace openMVG {
 	namespace matching_image_collection {
 
+		//class Cascade_Hashing_Generate {
+		//	void Hash
+		//	(
+		//		//offer openMVG::features & openMVG::descriptor
+		//		const std::shared_ptr<sfm::Regions_Provider> & regions_provider,
+		//		std::map<IndexT, HashedDescriptions> & hashed_base_,
+		//		C_Progress * my_progress_bar = nullptr
+		//	);
+		//};
 		/// Implementation of an Image Collection Matcher
 		/// Compute putative matches between a collection of pictures
 		/// Spurious correspondences are discarded by using the
@@ -35,6 +44,8 @@ namespace openMVG {
 				float dist_ratio
 			);
 
+			
+
 			/// Find corresponding points between some pair of view Ids
 			void Match
 			(const std::shared_ptr<sfm::Regions_Provider> & regions_provider,
@@ -42,6 +53,7 @@ namespace openMVG {
 				matching::PairWiseMatchesContainer & map_PutativesMatches, // the pairwise photometric corresponding points
 				C_Progress * progress = nullptr
 			) const override;
+			
 
 		private:
 			// Distance ratio used to discard spurious correspondence

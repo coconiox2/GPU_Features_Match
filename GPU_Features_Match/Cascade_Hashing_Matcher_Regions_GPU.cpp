@@ -38,7 +38,8 @@ namespace openMVG {
 
 		namespace CascadeHashWithGPU
 		{
-			template <typename ScalarT>
+			
+			
 
 			///// Portable type used to store an index
 			//using IndexT = uint32_t;
@@ -54,9 +55,20 @@ namespace openMVG {
 			//
 			///// Vector of Pair
 			//using Pair_Vec = std::vector<Pair>;
+			//template <typename ScalarT>
+			//void Hash
+			//(
+			//	//offer openMVG::features & openMVG::descriptor
+			//	const sfm::Regions_Provider & regions_provider,
+			//	std::map<IndexT, HashedDescriptions> & hashed_base_,
+			//	C_Progress * my_progress_bar
+			//) 
+			//{
+			//
+			//}
 
-
-
+			//´ý¸Ä
+			template <typename ScalarT>
 			void Match
 			(
 				//offer openMVG::features & openMVG::descriptor
@@ -70,120 +82,99 @@ namespace openMVG {
 				C_Progress * my_progress_bar
 			)
 			{
-				if (!my_progress_bar)
-					my_progress_bar = &C_Progress::dummy();
-				my_progress_bar->restart(pairs.size(), "\n- Matching -\n");
-
-				// Collect used view indexes
-				std::set<IndexT> used_index;
-				// Sort pairs according the first index to minimize later memory swapping
-				//std::map use red&black tree to sort it's members automatically
-				//IndexT <--> vector,There are multiple views for each view to match
-				using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-				Map_vectorT map_Pairs;
-				for (const auto & pair_idx : pairs)
-				{
-					map_Pairs[pair_idx.first].push_back(pair_idx.second);
-					used_index.insert(pair_idx.first);
-					used_index.insert(pair_idx.second);
-				}
-
-				//A matrix with an element type a, unknown number of rows and columns, and stored as rows
-				using BaseMat = Eigen::Matrix<ScalarT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-
-				// Init the cascade hasher
-				CascadeHasher cascade_hasher;
-				if (!used_index.empty())
-				{
-					const IndexT I = *used_index.begin();
-					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-					const size_t dimension = regionsI->DescriptorLength();
-					cascade_hasher.Init(dimension);
-				}
-
-				std::map<IndexT, HashedDescriptions> hashed_base_;
-
-				// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
-				// A vector of undetermined size but with a value of float data
-				Eigen::VectorXf zero_mean_descriptor;
-				{
-					// A matrix of float type whose size is undetermined
-					Eigen::MatrixXf matForZeroMean;
-					for (int i = 0; i < used_index.size(); ++i)
-					{
-						std::set<IndexT>::const_iterator iter = used_index.begin();
-						std::advance(iter, i);
-						const IndexT I = *iter;
-						const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-						//raw data: it seems like return the first descriptor£¨regionsI's descriptors£©'s pointer
-						//Regardless of the storage type of the descriptor, it is converted to ScalarT
-						const ScalarT * tabI =
-							reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-						const size_t dimension = regionsI->DescriptorLength();
-						if (i == 0)
-						{
-							//Each row of the matrix is the size of a descriptor
-							matForZeroMean.resize(used_index.size(), dimension);
-							matForZeroMean.fill(0.0f);
-						}
-						if (regionsI->RegionCount() > 0)
-						{
-							Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-							//GPU parallel here may be slower
-							//return descriptions.template cast<float>().colwise().mean();
-							matForZeroMean.row(i) = CascadeHasher::GetZeroMeanDescriptor(mat_I);
-						}
-					}
-					//GPU parallel here may be slower
-					zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(matForZeroMean);
-				}
-
-				// Index the input regions
-				std::vector<Eigen::Map<BaseMat>> vec_Mat_I;
-#ifdef OPENMVG_USE_OPENMP
-#pragma omp parallel for schedule(dynamic)
-#endif
-
-				for (int i = 0; i < used_index.size(); ++i)
-				{
-					std::set<IndexT>::const_iterator iter = used_index.begin();
-					std::advance(iter, i);
-					const IndexT I = *iter;
-					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-					const ScalarT * tabI =
-						reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-					const size_t dimension = regionsI->DescriptorLength();
-
-					Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-					vec_Mat_I.push_back(mat_I);
-//#ifdef OPENMVG_USE_OPENMP
-//#pragma omp critical
-//#endif
+//				if (!my_progress_bar)
+//					my_progress_bar = &C_Progress::dummy();
+//				my_progress_bar->restart(pairs.size(), "\n- Matching -\n");
+//
+//				// Collect used view indexes
+//				std::set<IndexT> used_index;
+//				// Sort pairs according the first index to minimize later memory swapping
+//				//std::map use red&black tree to sort it's members automatically
+//				//IndexT <--> vector,There are multiple views for each view to match
+//				using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
+//				Map_vectorT map_Pairs;
+//				for (const auto & pair_idx : pairs)
+//				{
+//					map_Pairs[pair_idx.first].push_back(pair_idx.second);
+//					used_index.insert(pair_idx.first);
+//					used_index.insert(pair_idx.second);
+//				}
+//
+//				//A matrix with an element type a, unknown number of rows and columns, and stored as rows
+//				using BaseMat = Eigen::Matrix<ScalarT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+//
+//				// Init the cascade hasher
+//				CascadeHasher cascade_hasher;
+//				if (!used_index.empty())
+//				{
+//					const IndexT I = *used_index.begin();
+//					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+//					const size_t dimension = regionsI->DescriptorLength();
+//					cascade_hasher.Init(dimension);
+//				}
+//
+//				std::map<IndexT, HashedDescriptions> hashed_base_;
+//
+//				// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
+//				// A vector of undetermined size but with a value of float data
+//				Eigen::VectorXf zero_mean_descriptor;
+//				{
+//					// A matrix of float type whose size is undetermined
+//					Eigen::MatrixXf matForZeroMean;
+//					for (int i = 0; i < used_index.size(); ++i)
 //					{
-//						cascade_hasher.CreateHashedDescriptions(mat_I, zero_mean_descriptor);
+//						std::set<IndexT>::const_iterator iter = used_index.begin();
+//						std::advance(iter, i);
+//						const IndexT I = *iter;
+//						const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+//						//raw data: it seems like return the first descriptor£¨regionsI's descriptors£©'s pointer
+//						//Regardless of the storage type of the descriptor, it is converted to ScalarT
+//						const ScalarT * tabI =
+//							reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
+//						const size_t dimension = regionsI->DescriptorLength();
+//						if (i == 0)
+//						{
+//							//Each row of the matrix is the size of a descriptor
+//							matForZeroMean.resize(used_index.size(), dimension);
+//							matForZeroMean.fill(0.0f);
+//						}
+//						if (regionsI->RegionCount() > 0)
+//						{
+//							Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
+//							//GPU parallel here may be slower
+//							//return descriptions.template cast<float>().colwise().mean();
+//							matForZeroMean.row(i) = CascadeHasher::GetZeroMeanDescriptor(mat_I);
+//						}
 //					}
-				}
-				cascade_hasher.CreateHashedDescriptions(vec_Mat_I, zero_mean_descriptor, hashed_base_);
+//					//GPU parallel here may be slower
+//					zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(matForZeroMean);
+//				}
+//
+//				// Index the input regions
+//				std::vector<Eigen::Map<BaseMat>> vec_Mat_I;
+//#ifdef OPENMVG_USE_OPENMP
+//#pragma omp parallel for schedule(dynamic)
+//#endif
+//
+//				for (int i = 0; i < used_index.size(); ++i)
+//				{
+//					std::set<IndexT>::const_iterator iter = used_index.begin();
+//					std::advance(iter, i);
+//					const IndexT I = *iter;
+//					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+//					const ScalarT * tabI =
+//						reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
+//					const size_t dimension = regionsI->DescriptorLength();
+//
+//					Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
+//					//descriptionsMat = descriptions.template cast<float>();
+//					mat_I = mat_I.template cast<float>();
+//					vec_Mat_I.push_back(mat_I);
+//				}
+//				//
+//				cascade_hasher.CreateHashedDescriptions(vec_Mat_I, zero_mean_descriptor, hashed_base_);
 
-				/*for (int i = 0; i < used_index.size(); ++i)
-				{
-					std::set<IndexT>::const_iterator iter = used_index.begin();
-					std::advance(iter, i);
-					const IndexT I = *iter;
-					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-					const ScalarT * tabI =
-						reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-					const size_t dimension = regionsI->DescriptorLength();
-
-					Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-#ifdef OPENMVG_USE_OPENMP
-#pragma omp critical
-#endif
-					{
-						hashed_base_[I] =
-							std::move(cascade_hasher.CreateHashedDescriptions(mat_I, zero_mean_descriptor));
-					}
-				}*/
+				
 
 				// Perform matching between all the pairs
 				for (const auto & pairs : map_Pairs)
