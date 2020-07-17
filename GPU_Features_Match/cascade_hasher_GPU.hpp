@@ -153,7 +153,7 @@ namespace openMVG {
 		//	}
 		//};
 		class CascadeHasher {
-		private:
+		public:
 
 			// The number of bucket bits.
 			int nb_bits_per_bucket_;
@@ -164,7 +164,7 @@ namespace openMVG {
 			// The number of buckets in each group.
 			int nb_buckets_per_group_;
 
-		public:
+		
 			CascadeHasher() = default;
 
 			// Creates the hashing projections (cascade of two level of hash codes)
@@ -427,6 +427,82 @@ namespace openMVG {
 			}
 			
 			
+			void upload_descriptions_before_hash
+			(
+				float *descriptionsMat_data_temp_1,
+				const float *descriptions_CPU,
+				const float *descriptions_GPU,
+				float *hash_base_CPU,
+				float *hash_base_GPU,
+				int descriptionsRows
+			)
+			{
+				
+
+				//2.分配主机内存
+				cudaHostAlloc((void**)&descriptions_CPU, (descriptionsRows * descriptionDimension),
+					cudaHostAllocWriteCombined | cudaHostAllocMapped);
+				std::cout << "cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
+				cudaGetErrorString(cudaGetLastError());
+				cudaHostAlloc((void**)&hash_base_CPU, (descriptionsRows * descriptionDimension),
+					cudaHostAllocWriteCombined | cudaHostAllocMapped);
+				std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
+				cudaGetErrorString(cudaGetLastError());
+				descriptions_CPU = const_cast<const float*> (descriptionsMat_data_temp_1);
+
+				//3.将常规的主机指针转换成指向设备内存空间的指针
+				cudaHostGetDevicePointer((void **)&descriptions_GPU, (void *)descriptions_CPU, 0);
+				std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+				cudaGetErrorString(cudaGetLastError());
+				cudaHostGetDevicePointer((void **)&hash_base_GPU, (void *)hash_base_CPU, 0);
+				std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+				cudaGetErrorString(cudaGetLastError());
+			}
+
+			void hash_gen
+			(
+				int mat_I_rows_count,
+				int descriptionDimension,
+				float *primary_hash_projection_data_device,
+				const float *descriptions_GPU,
+				float *hash_base_GPU
+			)
+			{
+				dim3 threads(1, 1);
+				dim3 grid(1, 1);
+				// 创建并初始化 CUBLAS 库对象
+				cublasHandle_t handle;
+				int status = cublasCreate(&handle);
+				if (status != CUBLAS_STATUS_SUCCESS)
+				{
+					if (status == CUBLAS_STATUS_NOT_INITIALIZED) {
+						std::cout << "CUBLAS 对象实例化出错" << std::endl;
+					}
+					getchar();
+
+				}
+				// 同步函数
+				cudaThreadSynchronize();
+				// 传递进矩阵相乘函数中的参数，具体含义请参考函数手册。
+				float a = 1; float b = 0;
+				// 矩阵相乘。该函数必然将数组解析成列优先数组
+				status = cublasSgemm(
+					handle,    // blas 库对象
+					CUBLAS_OP_N,    // 矩阵 A 属性参数
+					CUBLAS_OP_N,    // 矩阵 B 属性参数	
+					primary_hash_projection_.cols(),    // B, C 的列数, n
+					mat_I_rows_count,    // A, C 的行数 m
+					descriptionDimension,    // A 的列数和 B 的行数 k
+					&a,    // 运算式的 α 值
+					primary_hash_projection_data_device,    // B 在显存中的地址
+					primary_hash_projection_.cols(),    // B, C 的列数, n
+					descriptions_GPU,    // A 在显存中的地址
+					descriptionDimension,    // ldb k
+					&b,    // 运算式的 β 值
+					hash_base_GPU,    // C 在显存中的地址(结果矩阵)
+					primary_hash_projection_.cols()    // B, C 的列数, n
+				);
+			}
 
 			// Matches two collection of hashed descriptions with a fast matching scheme
 			// based on the hash codes previously generated.

@@ -54,6 +54,13 @@ using namespace std;
 
 namespace openMVG {
 	namespace matching_image_collection {
+		/*void checkCUDAError(const char *msg) {
+			cudaError_t err = cudaGetLastError();
+			if (cudaSuccess != err) {
+				fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString(err));
+				exit(EXIT_FAILURE);
+			}
+		}*/
 		class Cascade_Hash_Generate {
 		public:
 			
@@ -324,43 +331,8 @@ void computeMatches::ComputeMatches::computeZeroMeanDescriptors(Eigen::VectorXf 
 		}
 		zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(zero_descriptor);
 	}
-			
-	// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
-	// A vector of undetermined size but with a value of float data
-	{
-		// A matrix of float type whose size is undetermined
-		Eigen::MatrixXf matForZeroMean;
-		
-		for (int i = 0; i < imgCount; ++i)
-		{
-			std::set<IndexT>::const_iterator iter = used_index.begin();
-			std::advance(iter, i);
-			const IndexT I = *iter;
-			const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-			//raw data: it seems like return the first descriptor（regionsI's descriptors）'s pointer
-			//Regardless of the storage type of the descriptor, it is converted to ScalarT
-			const ScalarT * tabI =
-				reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-			const size_t dimension = regionsI->DescriptorLength();
-			if (i == 0)
-			{
-				//Each row of the matrix is the size of a descriptor
-				matForZeroMean.resize(used_index.size(), dimension);
-				matForZeroMean.fill(0.0f);
-			}
-			if (regionsI->RegionCount() > 0)
-			{
-				Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-				//GPU parallel here may be slower
-				//return descriptions.template cast<float>().colwise().mean();
-				matForZeroMean.row(i) = CascadeHasher::GetZeroMeanDescriptor(mat_I);
-			}
-		}
-		//GPU parallel here may be slower
-		zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(matForZeroMean);
-	}
 }
-int computeMatches::ComputeMatches::computeMatches()
+int computeMatches::ComputeMatches::computeHashes()
 {
 	//fundamental matrix
 	std::string sGeometricModel = "f";
@@ -440,8 +412,29 @@ int computeMatches::ComputeMatches::computeMatches()
 	}
 	//分组读入图片数据之前就先把GPU上常用的空间先申请好
 	//需要上传的一直用的数据也都上传
+	openMVG::matching::RTOC myRTOC;
+
 	CascadeHasher myCascadeHasher;
-	myCascadeHasher.Init(128);
+	myCascadeHasher.Init(descriptionDimension);
+
+	////这里先上传哈希计算所需要的数据 primary_hash_projection_ 
+
+	int primary_hash_projection_size = (myCascadeHasher.primary_hash_projection_.rows()) * (myCascadeHasher.primary_hash_projection_.cols());
+	const float *primary_hash_projection_data_temp = myCascadeHasher.primary_hash_projection_.data();
+	float *primary_hash_projection_data_temp_1 = (float*)malloc(primary_hash_projection_size * sizeof(float));
+	myRTOC.cToR(primary_hash_projection_data_temp, myCascadeHasher.primary_hash_projection_.rows(), myCascadeHasher.primary_hash_projection_.cols(), primary_hash_projection_data_temp_1);
+	//cpu上存放primary的指针
+	const float *primary_hash_projection_data = const_cast<const float*>(primary_hash_projection_data_temp_1);
+	//GPU上存放primary的指针
+	float *primary_hash_projection_data_device;
+	cudaMalloc((void **)&primary_hash_projection_data_device, sizeof(float) * primary_hash_projection_size);
+	// 将矩阵数据传递进 显存 中已经开辟好了的空间
+	cudaMemcpy(primary_hash_projection_data_device, primary_hash_projection_data, sizeof(float) * primary_hash_projection_size, cudaMemcpyHostToDevice);
+
+	////这里再上传哈希匹配所需要的数据 secondary_hash_projection_ 
+	{
+		
+	}
 
 	//分组读入图片数据，1个sfm_data就是一组的图像数据
 	//这里先计算哈希值
@@ -681,43 +674,60 @@ int computeMatches::ComputeMatches::computeMatches()
 							}
 
 							
-							std::map<IndexT, HashedDescriptions> hashed_base_;
+							//std::map<IndexT, HashedDescriptions> hashed_base_;
 
-							CascadeHasher myCascadeHasher;
-							myCascadeHasher.Init(128);
+							
 
 							openMVG::matching_image_collection::Cascade_Hash_Generate sCascade_Hash_Generate;
 							//第二层数据调度策略 CPU内存 <--> GPU内存
 							using BaseMat = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-							//当前块数据
-							std::vector<Eigen::Map<BaseMat>> vec_Mat_I;
-							std::vector <int> mat_I_rows;
-							mat_I_rows.resize(image_count_per_block);
-
-							const float *mat_I_point_array[image_count_per_block];
-
-							int vec_Mat_I_size = 0;
-							//预读块数据
-							std::vector<Eigen::Map<BaseMat>> vec_Mat_I_pre;
-							std::vector <int> mat_I_pre_rows;
-							mat_I_pre_rows.resize(image_count_per_block);
-
-							const float *mat_I_pre_point_array[image_count_per_block];
-
-							int vec_Mat_I_pre_size = 0;
+							//1.启用零拷贝内存
+							cudaSetDeviceFlags(cudaDeviceMapHost);
+							
+							
 
 							for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
-							//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
+								//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
+								std::vector <int> mat_I_rows;
+								mat_I_rows.resize(image_count_per_block);
+
+								std::vector <int> mat_I_pre_rows;
+								mat_I_pre_rows.resize(image_count_per_block);
+
+								//host存放当前块内的图像描述符数据的指针数组
+								const float *mat_I_point_array_CPU[image_count_per_block];
+								//host存放当前块数据哈希计算结果的指针数组
+								float *hash_base_array_CPU[image_count_per_block];
+								//device存放当前块内的图像描述符数据的指针数组
+								const float *mat_I_point_array_GPU[image_count_per_block];
+								//device存放当前块数据哈希计算结果的指针数组
+								float *hash_base_array_GPU[image_count_per_block];
+								//保存整个块内数据描述符的数量大小
+								//int vec_Mat_I_size = 0;
+
+								//保存块内每一张图片的特征描述符个数
+								std::vector <int> mat_I_pre_rows;
+								mat_I_pre_rows.resize(image_count_per_block);
+
+								//host存放预读块内的图像描述符数据的指针数组
+								const float *mat_I_pre_point_array_CPU[image_count_per_block];
+								//host存放预读块内数据哈希计算结果的指针数组
+								float *hash_base_pre_array_CPU[image_count_per_block];
+								//device存放预读块内的图像描述符数据的指针数组
+								const float *mat_I_pre_point_array_GPU[image_count_per_block];
+								//device存放预读块数据哈希计算结果的指针数组
+								float *hash_base_pre_array_GPU[image_count_per_block];
+
+								//存放当前块的所有数据哈希计算的结果
+								std::map<IndexT, HashedDescriptions> hashed_base_;
+								
 								{
 									if (secondIter == 0) {
-										vec_Mat_I.resize(image_count_per_block);
-										
-										int hashed_base_size = 0;
-										//处理块内每一张图片的数据
+										//处理当前块内每一张图片的数据后上传到GPU上
 										for (int m = 0; m < image_count_per_block; ++m)
 										{
 											std::set<IndexT>::const_iterator iter = used_index.begin();
-											std::advance(iter, m);
+											std::advance(iter, m+secondIter*image_count_per_block);
 											const IndexT I = *iter;
 											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
 											const float * tabI =
@@ -735,39 +745,345 @@ int computeMatches::ComputeMatches::computeMatches()
 											}
 											const float *descriptionsMat_data_temp = descriptionsMat.data();
 											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
-											openMVG::matching::RTOC myRTOC;
+											//openMVG::matching::RTOC myRTOC;
 											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
-											//const float *descriptionsMat_data = const_cast<const float*> (descriptionsMat_data_temp_1);
-											mat_I_point_array[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
-
+											
+											myCascadeHasher.upload_descriptions_before_hash(descriptionsMat_data_temp_1, mat_I_point_array_CPU[m],
+												mat_I_point_array_GPU[m], hash_base_array_CPU[m],hash_base_array_GPU[m], mat_I.rows());
+											
 											mat_I_rows.push_back(mat_I.rows());
-											hashed_base_size += mat_I.rows();
-											vec_Mat_I.push_back(mat_I);
+											/*hashed_base_size += mat_I.rows();
+											vec_Mat_I.push_back(mat_I);*/
 										}
-										//把vec_Mat_I上传，并为hashed_base_申请空间
-										//GPU上存放描述符的指针
+										//处理预读块内每一张图片的数据后上传到GPU上
+										for (int m = 0; m < image_count_per_block; ++m)
 										{
-											float *vec_Mat_I_device;
-											cudaMalloc((void **)&vec_Mat_I_device, sizeof(float) * hashed_base_size * descriptionDimension);
-											 float* vec_Mat_I_data = vec_Mat_I.data();
-											cudaMemcpy(vec_Mat_I_device, descriptionsMat_data, sizeof(float) * descriptions_size, cudaMemcpyHostToDevice);
+											std::set<IndexT>::const_iterator iter = used_index.begin();
+											std::advance(iter, m + (secondIter+1)*image_count_per_block);
+											const IndexT I = *iter;
+											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
+											const float * tabI =
+												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const size_t dimension = regionsI->DescriptorLength();
+
+											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
+											//descriptionsMat = descriptions.template cast<float>();
+											//mat_I = mat_I.template cast<float>();
+
+											Eigen::MatrixXf descriptionsMat;
+											descriptionsMat = mat_I.template cast<float>();
+											for (int k = 0; k < descriptionsMat.rows(); k++) {
+												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
+											}
+											const float *descriptionsMat_data_temp = descriptionsMat.data();
+											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
+											//openMVG::matching::RTOC myRTOC;
+											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
+											//2.分配主机内存
+											cudaHostAlloc((void**)&mat_I_pre_point_array_CPU[m], (mat_I.rows() * mat_I.cols()),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout << "cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostAlloc((void**)&hash_base_pre_array_CPU[m], (mat_I.rows() * descriptionDimension),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											mat_I_pre_point_array_CPU[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
+
+											//3.将常规的主机指针转换成指向设备内存空间的指针
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+
+											mat_I_pre_rows.push_back(mat_I.rows());
+											/*hashed_base_size += mat_I.rows();
+											vec_Mat_I.push_back(mat_I);*/
 										}
 										
-										//把vec_Mat_I_pre上传
-									}
-									else if (secondIter > 0 && secondIter < block_count_per_group - 1) {
+										//为当前块数据做hash，并将其存储到本地文件当中
+										{
+											for (int m = 0; m < image_count_per_block; ++m) {
+												myCascadeHasher.hash_gen( mat_I_rows[m], descriptionDimension,
+													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
+													hash_base_array_GPU[m] );
+												
+												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+												{
+													for (int i = 0; i < mat_I_rows[m]; ++i) {
+														// Allocate space for each bucket id.
+														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														// Compute hash code.
+														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
+														hash_code = stl::dynamic_bitset(descriptionDimension);
+														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
+														{
+															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
+														}
+													}
+												}
+												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+												{
+													
+												}
+											}
+										}
+										//变换当前块与预读块的相关数据
+										for (int m = 0; m < image_count_per_block; ++m) {
+											mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
+											mat_I_rows[m] = mat_I_pre_rows[m];
+										}
+										//再预读一块数据进来
+										for (int m = 0; m < image_count_per_block; ++m)
+										{
+											std::set<IndexT>::const_iterator iter = used_index.begin();
+											std::advance(iter, m + (secondIter + 2)*image_count_per_block);
+											const IndexT I = *iter;
+											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
+											const float * tabI =
+												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const size_t dimension = regionsI->DescriptorLength();
 
-									}
-									else if (secondIter == block_count_per_group) {
+											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
+											//descriptionsMat = descriptions.template cast<float>();
+											//mat_I = mat_I.template cast<float>();
 
+											Eigen::MatrixXf descriptionsMat;
+											descriptionsMat = mat_I.template cast<float>();
+											for (int k = 0; k < descriptionsMat.rows(); k++) {
+												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
+											}
+											const float *descriptionsMat_data_temp = descriptionsMat.data();
+											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
+											//openMVG::matching::RTOC myRTOC;
+											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
+											//2.分配主机内存
+											cudaHostAlloc((void**)&mat_I_pre_point_array_CPU[m], (mat_I.rows() * mat_I.cols()),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout << "cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostAlloc((void**)&hash_base_pre_array_CPU[m], (mat_I.rows() * descriptionDimension),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											mat_I_pre_point_array_CPU[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
+
+											//3.将常规的主机指针转换成指向设备内存空间的指针
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+
+											mat_I_pre_rows.push_back(mat_I.rows());
+											/*hashed_base_size += mat_I.rows();
+											vec_Mat_I.push_back(mat_I);*/
+										}
+									}
+									else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+										// 同步函数
+										cudaThreadSynchronize();
+										//为当前块数据做hash，并将其存储到本地文件当中
+										{
+											for (int m = 0; m < image_count_per_block; ++m) {
+												// 传递进矩阵相乘函数中的参数，具体含义请参考函数手册。
+												float a = 1; float b = 0;
+												// 矩阵相乘。该函数必然将数组解析成列优先数组
+												status = cublasSgemm(
+													handle,    // blas 库对象
+													CUBLAS_OP_N,    // 矩阵 A 属性参数
+													CUBLAS_OP_N,    // 矩阵 B 属性参数	
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_rows[m],    // A, C 的行数 m
+													descriptionDimension,    // A 的列数和 B 的行数 k
+													&a,    // 运算式的 α 值
+													primary_hash_projection_data_device,    // B 在显存中的地址
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_point_array_GPU[m],    // A 在显存中的地址
+													descriptionDimension,    // ldb k
+													&b,    // 运算式的 β 值
+													hash_base_array_GPU[m],    // C 在显存中的地址(结果矩阵)
+													myCascadeHasher.primary_hash_projection_.cols()    // B, C 的列数, n
+												);
+												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+												{
+													for (int i = 0; i < mat_I_rows[m]; ++i) {
+														// Allocate space for each bucket id.
+														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														// Compute hash code.
+														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
+														hash_code = stl::dynamic_bitset(descriptionDimension);
+														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
+														{
+															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
+														}
+													}
+												}
+												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+												{
+
+												}
+											}
+										}
+										//变换当前块与预读块的相关数据
+										for (int m = 0; m < image_count_per_block; ++m) {
+											mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
+											mat_I_rows[m] = mat_I_pre_rows[m];
+										}
+										//再预读一块数据进来
+										for (int m = 0; m < image_count_per_block; ++m)
+										{
+											std::set<IndexT>::const_iterator iter = used_index.begin();
+											std::advance(iter, m + (secondIter + 2)*image_count_per_block);
+											const IndexT I = *iter;
+											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
+											const float * tabI =
+												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const size_t dimension = regionsI->DescriptorLength();
+
+											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
+											//descriptionsMat = descriptions.template cast<float>();
+											//mat_I = mat_I.template cast<float>();
+
+											Eigen::MatrixXf descriptionsMat;
+											descriptionsMat = mat_I.template cast<float>();
+											for (int k = 0; k < descriptionsMat.rows(); k++) {
+												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
+											}
+											const float *descriptionsMat_data_temp = descriptionsMat.data();
+											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
+											//openMVG::matching::RTOC myRTOC;
+											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
+											//2.分配主机内存
+											cudaHostAlloc((void**)&mat_I_pre_point_array_CPU[m], (mat_I.rows() * mat_I.cols()),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout<<"cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostAlloc((void**)&hash_base_pre_array_CPU[m], (mat_I.rows() * descriptionDimension),
+												cudaHostAllocWriteCombined | cudaHostAllocMapped);
+											std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											mat_I_pre_point_array_CPU[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
+
+											//3.将常规的主机指针转换成指向设备内存空间的指针
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
+											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
+											cudaGetErrorString(cudaGetLastError());
+											mat_I_pre_rows.push_back(mat_I.rows());
+											/*hashed_base_size += mat_I.rows();
+											vec_Mat_I.push_back(mat_I);*/
+										}
+									}
+									else if (secondIter == block_count_per_group - 2) {
+										// 同步函数
+										cudaThreadSynchronize();
+										//为当前块数据做hash，并将其存储到本地文件当中
+										{
+											for (int m = 0; m < image_count_per_block; ++m) {
+												// 传递进矩阵相乘函数中的参数，具体含义请参考函数手册。
+												float a = 1; float b = 0;
+												// 矩阵相乘。该函数必然将数组解析成列优先数组
+												status = cublasSgemm(
+													handle,    // blas 库对象
+													CUBLAS_OP_N,    // 矩阵 A 属性参数
+													CUBLAS_OP_N,    // 矩阵 B 属性参数	
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_rows[m],    // A, C 的行数 m
+													descriptionDimension,    // A 的列数和 B 的行数 k
+													&a,    // 运算式的 α 值
+													primary_hash_projection_data_device,    // B 在显存中的地址
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_point_array_GPU[m],    // A 在显存中的地址
+													descriptionDimension,    // ldb k
+													&b,    // 运算式的 β 值
+													hash_base_array_GPU[m],    // C 在显存中的地址(结果矩阵)
+													myCascadeHasher.primary_hash_projection_.cols()    // B, C 的列数, n
+												);
+												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+												{
+													for (int i = 0; i < mat_I_rows[m]; ++i) {
+														// Allocate space for each bucket id.
+														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														// Compute hash code.
+														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
+														hash_code = stl::dynamic_bitset(descriptionDimension);
+														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
+														{
+															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
+														}
+													}
+												}
+												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+												{
+
+												}
+											}
+										}
+										//变换当前块与预读块的相关数据
+										for (int m = 0; m < image_count_per_block; ++m) {
+											mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
+											mat_I_rows[m] = mat_I_pre_rows[m];
+										}
+										//处理最后一块数据
+										// 同步函数
+										cudaThreadSynchronize();
+										//为当前块数据做hash，并将其存储到本地文件当中
+										{
+											for (int m = 0; m < image_count_per_block; ++m) {
+												// 传递进矩阵相乘函数中的参数，具体含义请参考函数手册。
+												float a = 1; float b = 0;
+												// 矩阵相乘。该函数必然将数组解析成列优先数组
+												status = cublasSgemm(
+													handle,    // blas 库对象
+													CUBLAS_OP_N,    // 矩阵 A 属性参数
+													CUBLAS_OP_N,    // 矩阵 B 属性参数	
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_rows[m],    // A, C 的行数 m
+													descriptionDimension,    // A 的列数和 B 的行数 k
+													&a,    // 运算式的 α 值
+													primary_hash_projection_data_device,    // B 在显存中的地址
+													myCascadeHasher.primary_hash_projection_.cols(),    // B, C 的列数, n
+													mat_I_point_array_GPU[m],    // A 在显存中的地址
+													descriptionDimension,    // ldb k
+													&b,    // 运算式的 β 值
+													hash_base_array_GPU[m],    // C 在显存中的地址(结果矩阵)
+													myCascadeHasher.primary_hash_projection_.cols()    // B, C 的列数, n
+												);
+												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+												{
+													for (int i = 0; i < mat_I_rows[m]; ++i) {
+														// Allocate space for each bucket id.
+														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														// Compute hash code.
+														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
+														hash_code = stl::dynamic_bitset(descriptionDimension);
+														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
+														{
+															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
+														}
+													}
+												}
+												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+												{
+
+												}
+											}
+										}
 									}
 									else {
 										cout << "error in the second data exchange schedule! \n" << endl;
 										return EXIT_FAILURE;
 									}
 								}
+								cublasDestroy(handle);
 							}
-							sCascade_Hash_Generate.Hash<float>((*regions_provider.get()), hashed_base_, pairs, map_Pairs, used_index, 1, &progress);
+							
 							//将得到的哈希值hashed_base_传入到match里面去进行匹配，不过下面这一段应该放在下一个for循环(match的数据调度策略)里面去做
 							collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches, &progress);
 							//---------------------------------------
@@ -933,7 +1249,7 @@ int computeMatches::ComputeMatches::computeMatches()
 				//return EXIT_SUCCESS;
 			}
 		}
-		else if(i>0 && i<group_count-1)
+		else if(i>0 && i<group_count-2)
 		{
 			//---------------------------------------
 			// 直接处理当前组的数据
@@ -1268,8 +1584,639 @@ int computeMatches::ComputeMatches::computeMatches()
 			}
 			//return EXIT_SUCCESS;
 		}
-		else if (i == (group_count - 1)) {
-			
+		else if (i == (group_count - 2)) {
+			//---------------------------------------
+			// 直接处理当前组的数据
+			//---------------------------------------
+			{
+				//---------------------------------------
+				// Load SfM Scene regions
+				//---------------------------------------
+				// Init the regions_type from the image describer file (used for image regions extraction)
+				using namespace openMVG::features;
+				const std::string sImage_describer = stlplus::create_filespec(sMatchesOutputDir_hash, "image_describer", "json");
+				//The default regions_type is SIFT_Regions
+				//The default SIFT_Regions is Scalar type
+				std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
+				if (!regions_type)
+				{
+					std::cerr << "Invalid: "
+						<< sImage_describer << " regions type file." << std::endl;
+					return EXIT_FAILURE;
+				}
+
+				//---------------------------------------
+				// a. Compute putative descriptor matches
+				//    - Descriptor matching (according user method choice)
+				//    - Keep correspondences only if NearestNeighbor ratio is ok
+				//---------------------------------------
+
+				// Load the corresponding view regions
+				std::shared_ptr<Regions_Provider> regions_provider;
+				if (ui_max_cache_size == 0)
+				{
+					// Default regions provider (load & store all regions in memory)
+					regions_provider = std::make_shared<Regions_Provider>();
+				}
+				else
+				{
+					// Cached regions provider (load & store regions on demand)
+					regions_provider = std::make_shared<Regions_Provider_Cache>(ui_max_cache_size);
+				}
+
+				// Show the progress on the command line:
+				C_Progress_display progress;
+
+				if (!regions_provider->load(sfm_data_hash, sMatchesOutputDir_hash, regions_type, &progress)) {
+					std::cerr << std::endl << "Invalid regions." << std::endl;
+					return EXIT_FAILURE;
+				}
+
+				PairWiseMatches map_PutativesMatches;
+
+				// Build some alias from SfM_Data Views data:
+				// - List views as a vector of filenames & image sizes
+				std::vector<std::string> vec_fileNames;
+				std::vector<std::pair<size_t, size_t>> vec_imagesSize;
+				{
+					vec_fileNames.reserve(sfm_data_hash.GetViews().size());
+					vec_imagesSize.reserve(sfm_data_hash.GetViews().size());
+					for (Views::const_iterator iter = sfm_data_hash.GetViews().begin();
+						iter != sfm_data_hash.GetViews().end();
+						++iter)
+					{
+						const View * v = iter->second.get();
+						vec_fileNames.push_back(stlplus::create_filespec(sfm_data_hash.s_root_path,
+							v->s_Img_path));
+						vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
+					}
+				}
+
+				std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+				// If the matches already exists, reload them
+				if (!bForce
+					&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
+						|| stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.bin"))
+					)
+				{
+					if (!(Load(map_PutativesMatches, sMatchesOutputDir_hash + "/matches.putative.bin") ||
+						Load(map_PutativesMatches, sMatchesOutputDir_hash + "/matches.putative.txt")))
+					{
+						std::cerr << "Cannot load input matches file";
+						return EXIT_FAILURE;
+					}
+					std::cout << "\t PREVIOUS RESULTS LOADED;"
+						<< " #pair: " << map_PutativesMatches.size() << std::endl;
+				}
+				else // Compute the putative matches
+				{
+					std::cout << "Use: ";
+					switch (ePairmode)
+					{
+					case PAIR_EXHAUSTIVE: std::cout << "exhaustive pairwise matching" << std::endl; break;
+					case PAIR_CONTIGUOUS: std::cout << "sequence pairwise matching" << std::endl; break;
+					case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
+					}
+
+					// Allocate the right Matcher according the Matching requested method
+					std::unique_ptr<Matcher> collectionMatcher;
+					if (sNearestMatchingMethod == "AUTO")
+					{
+						if (regions_type->IsScalar())
+						{
+							//default set runs here
+							std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
+							collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+						}
+						else
+							if (regions_type->IsBinary())
+							{
+								std::cout << "Using BRUTE_FORCE_HAMMING matcher" << std::endl;
+								collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_HAMMING));
+							}
+					}
+					else
+						if (sNearestMatchingMethod == "BRUTEFORCEL2")
+						{
+							std::cout << "Using BRUTE_FORCE_L2 matcher" << std::endl;
+							collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_L2));
+						}
+						else
+							if (sNearestMatchingMethod == "BRUTEFORCEHAMMING")
+							{
+								std::cout << "Using BRUTE_FORCE_HAMMING matcher" << std::endl;
+								collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_HAMMING));
+							}
+							else
+								if (sNearestMatchingMethod == "ANNL2")
+								{
+									std::cout << "Using ANN_L2 matcher" << std::endl;
+									collectionMatcher.reset(new Matcher_Regions(fDistRatio, ANN_L2));
+								}
+								else
+									if (sNearestMatchingMethod == "CASCADEHASHINGL2")
+									{
+										std::cout << "Using CASCADE_HASHING_L2 matcher" << std::endl;
+										collectionMatcher.reset(new Matcher_Regions(fDistRatio, CASCADE_HASHING_L2));
+									}
+									else
+										if (sNearestMatchingMethod == "FASTCASCADEHASHINGL2")
+										{
+											std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
+											collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions(fDistRatio));
+										}
+					if (!collectionMatcher)
+					{
+						std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+						return EXIT_FAILURE;
+					}
+					// Perform the matching
+					system::Timer timer;
+					{
+						// From matching mode compute the pair list that have to be matched:
+						Pair_Set pairs;
+						switch (ePairmode)
+						{
+							////////////////////////////////////////////////////////////////////////////////////////
+							//
+							//
+							///////////////////////////////////////////////////////////////////////////////////////////
+						case PAIR_EXHAUSTIVE: pairs = exhaustivePairs(sfm_data_hash.GetViews().size()); break;
+						case PAIR_CONTIGUOUS: pairs = contiguousWithOverlap(sfm_data_hash.GetViews().size(), iMatchingVideoMode); break;
+						case PAIR_FROM_FILE:
+							if (!loadPairs(sfm_data_hash.GetViews().size(), sPredefinedPairList, pairs))
+							{
+								return EXIT_FAILURE;
+							}
+							break;
+						}
+						// Photometric matching of putative pairs
+						//GPU Parallel here 
+						//这里需要新写一个哈希码生成的类成员函数，每次读2个组进去到cascade_hasher_GPU(内存)里面，
+						//在cascade_hasher_GPU每次读2个块到GPU内存里
+						//
+						//
+						//这里每次读3个组进去到cascade_hasher_GPU(内存)里面，在cascade_hasher_GPU每次读3个块到GPU内存里
+						//注意每次读之前要把pairs(需要匹配的图像对)重新写好
+						collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches, &progress);
+						//---------------------------------------
+						//-- Export putative matches
+						//---------------------------------------
+						if (!Save(map_PutativesMatches, std::string(sMatchesOutputDir_hash + "/matches.putative.bin")))
+						{
+							std::cerr
+								<< "Cannot save computed matches in: "
+								<< std::string(sMatchesOutputDir_hash + "/matches.putative.bin");
+							return EXIT_FAILURE;
+						}
+					}
+					std::cout << "Task (Regions Matching) done in (s): " << timer.elapsed() << std::endl;
+				}
+				//-- export putative matches Adjacency matrix
+				PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
+					map_PutativesMatches,
+					stlplus::create_filespec(sMatchesOutputDir_hash, "PutativeAdjacencyMatrix", "svg"));
+				//-- export view pair graph once putative graph matches have been computed
+				{
+					std::set<IndexT> set_ViewIds;
+					std::transform(sfm_data_hash.GetViews().begin(), sfm_data_hash.GetViews().end(),
+						std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+					graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_PutativesMatches));
+					graph::exportToGraphvizData(
+						stlplus::create_filespec(sMatchesOutputDir_hash, "putative_matches"),
+						putativeGraph);
+				}
+
+				//---------------------------------------
+				// b. Geometric filtering of putative matches
+				//    - AContrario Estimation of the desired geometric model
+				//    - Use an upper bound for the a contrario estimated threshold
+				//---------------------------------------
+
+				std::unique_ptr<ImageCollectionGeometricFilter> filter_ptr(
+					new ImageCollectionGeometricFilter(&sfm_data_hash, regions_provider));
+
+				if (filter_ptr)
+				{
+					system::Timer timer;
+					const double d_distance_ratio = 0.6;
+
+					PairWiseMatches map_GeometricMatches;
+					switch (eGeometricModelToCompute)
+					{
+					case HOMOGRAPHY_MATRIX:
+					{
+						const bool bGeometric_only_guided_matching = true;
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_HMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching,
+							bGeometric_only_guided_matching ? -1.0 : d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case FUNDAMENTAL_MATRIX:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_FMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case ESSENTIAL_MATRIX:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_EMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+
+						//-- Perform an additional check to remove pairs with poor overlap
+						std::vector<PairWiseMatches::key_type> vec_toRemove;
+						for (const auto & pairwisematches_it : map_GeometricMatches)
+						{
+							const size_t putativePhotometricCount = map_PutativesMatches.find(pairwisematches_it.first)->second.size();
+							const size_t putativeGeometricCount = pairwisematches_it.second.size();
+							const float ratio = putativeGeometricCount / static_cast<float>(putativePhotometricCount);
+							if (putativeGeometricCount < 50 || ratio < .3f) {
+								// the pair will be removed
+								vec_toRemove.push_back(pairwisematches_it.first);
+							}
+						}
+						//-- remove discarded pairs
+						for (const auto & pair_to_remove_it : vec_toRemove)
+						{
+							map_GeometricMatches.erase(pair_to_remove_it);
+						}
+					}
+					break;
+					case ESSENTIAL_MATRIX_ANGULAR:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_ESphericalMatrix_AC_Angular(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case ESSENTIAL_MATRIX_ORTHO:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_EOMatrix_RA(2.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					}
+
+					//---------------------------------------
+					//-- Export geometric filtered matches
+					//---------------------------------------
+					if (!Save(map_GeometricMatches,
+						std::string(sMatchesOutputDir_hash + "/" + sGeometricMatchesFilename)))
+					{
+						std::cerr
+							<< "Cannot save computed matches in: "
+							<< std::string(sMatchesOutputDir_hash + "/" + sGeometricMatchesFilename);
+						return EXIT_FAILURE;
+					}
+
+					std::cout << "Task done in (s): " << timer.elapsed() << std::endl;
+
+					//-- export Adjacency matrix
+					std::cout << "\n Export Adjacency Matrix of the pairwise's geometric matches"
+						<< std::endl;
+					PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
+						map_GeometricMatches,
+						stlplus::create_filespec(sMatchesOutputDir_hash, "GeometricAdjacencyMatrix", "svg"));
+
+					//-- export view pair graph once geometric filter have been done
+					{
+						std::set<IndexT> set_ViewIds;
+						std::transform(sfm_data_hash.GetViews().begin(), sfm_data_hash.GetViews().end(),
+							std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+						graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_GeometricMatches));
+						graph::exportToGraphvizData(
+							stlplus::create_filespec(sMatchesOutputDir_hash, "geometric_matches"),
+							putativeGraph);
+					}
+				}
+			}
+			//处理完当前组数据后，再执行下面几行代码，把第二组的数据赋值给第一组
+			sSfM_Data_Filename_hash = sSfM_Data_Filename_hash_pre;
+			sMatchesOutputDir_hash = sMatchesOutputDir_hash_pre;
+			sfm_data_hash = sfm_data_hash_pre;
+			//---------------------------------------
+			// 直接处理当前组的数据
+			//---------------------------------------
+			{
+				//---------------------------------------
+				// Load SfM Scene regions
+				//---------------------------------------
+				// Init the regions_type from the image describer file (used for image regions extraction)
+				using namespace openMVG::features;
+				const std::string sImage_describer = stlplus::create_filespec(sMatchesOutputDir_hash, "image_describer", "json");
+				//The default regions_type is SIFT_Regions
+				//The default SIFT_Regions is Scalar type
+				std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
+				if (!regions_type)
+				{
+					std::cerr << "Invalid: "
+						<< sImage_describer << " regions type file." << std::endl;
+					return EXIT_FAILURE;
+				}
+
+				//---------------------------------------
+				// a. Compute putative descriptor matches
+				//    - Descriptor matching (according user method choice)
+				//    - Keep correspondences only if NearestNeighbor ratio is ok
+				//---------------------------------------
+
+				// Load the corresponding view regions
+				std::shared_ptr<Regions_Provider> regions_provider;
+				if (ui_max_cache_size == 0)
+				{
+					// Default regions provider (load & store all regions in memory)
+					regions_provider = std::make_shared<Regions_Provider>();
+				}
+				else
+				{
+					// Cached regions provider (load & store regions on demand)
+					regions_provider = std::make_shared<Regions_Provider_Cache>(ui_max_cache_size);
+				}
+
+				// Show the progress on the command line:
+				C_Progress_display progress;
+
+				if (!regions_provider->load(sfm_data_hash, sMatchesOutputDir_hash, regions_type, &progress)) {
+					std::cerr << std::endl << "Invalid regions." << std::endl;
+					return EXIT_FAILURE;
+				}
+
+				PairWiseMatches map_PutativesMatches;
+
+				// Build some alias from SfM_Data Views data:
+				// - List views as a vector of filenames & image sizes
+				std::vector<std::string> vec_fileNames;
+				std::vector<std::pair<size_t, size_t>> vec_imagesSize;
+				{
+					vec_fileNames.reserve(sfm_data_hash.GetViews().size());
+					vec_imagesSize.reserve(sfm_data_hash.GetViews().size());
+					for (Views::const_iterator iter = sfm_data_hash.GetViews().begin();
+						iter != sfm_data_hash.GetViews().end();
+						++iter)
+					{
+						const View * v = iter->second.get();
+						vec_fileNames.push_back(stlplus::create_filespec(sfm_data_hash.s_root_path,
+							v->s_Img_path));
+						vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
+					}
+				}
+
+				std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+				// If the matches already exists, reload them
+				if (!bForce
+					&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
+						|| stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.bin"))
+					)
+				{
+					if (!(Load(map_PutativesMatches, sMatchesOutputDir_hash + "/matches.putative.bin") ||
+						Load(map_PutativesMatches, sMatchesOutputDir_hash + "/matches.putative.txt")))
+					{
+						std::cerr << "Cannot load input matches file";
+						return EXIT_FAILURE;
+					}
+					std::cout << "\t PREVIOUS RESULTS LOADED;"
+						<< " #pair: " << map_PutativesMatches.size() << std::endl;
+				}
+				else // Compute the putative matches
+				{
+					std::cout << "Use: ";
+					switch (ePairmode)
+					{
+					case PAIR_EXHAUSTIVE: std::cout << "exhaustive pairwise matching" << std::endl; break;
+					case PAIR_CONTIGUOUS: std::cout << "sequence pairwise matching" << std::endl; break;
+					case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
+					}
+
+					// Allocate the right Matcher according the Matching requested method
+					std::unique_ptr<Matcher> collectionMatcher;
+					if (sNearestMatchingMethod == "AUTO")
+					{
+						if (regions_type->IsScalar())
+						{
+							//default set runs here
+							std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
+							collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+						}
+						else
+							if (regions_type->IsBinary())
+							{
+								std::cout << "Using BRUTE_FORCE_HAMMING matcher" << std::endl;
+								collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_HAMMING));
+							}
+					}
+					else
+						if (sNearestMatchingMethod == "BRUTEFORCEL2")
+						{
+							std::cout << "Using BRUTE_FORCE_L2 matcher" << std::endl;
+							collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_L2));
+						}
+						else
+							if (sNearestMatchingMethod == "BRUTEFORCEHAMMING")
+							{
+								std::cout << "Using BRUTE_FORCE_HAMMING matcher" << std::endl;
+								collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_HAMMING));
+							}
+							else
+								if (sNearestMatchingMethod == "ANNL2")
+								{
+									std::cout << "Using ANN_L2 matcher" << std::endl;
+									collectionMatcher.reset(new Matcher_Regions(fDistRatio, ANN_L2));
+								}
+								else
+									if (sNearestMatchingMethod == "CASCADEHASHINGL2")
+									{
+										std::cout << "Using CASCADE_HASHING_L2 matcher" << std::endl;
+										collectionMatcher.reset(new Matcher_Regions(fDistRatio, CASCADE_HASHING_L2));
+									}
+									else
+										if (sNearestMatchingMethod == "FASTCASCADEHASHINGL2")
+										{
+											std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
+											collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions(fDistRatio));
+										}
+					if (!collectionMatcher)
+					{
+						std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+						return EXIT_FAILURE;
+					}
+					// Perform the matching
+					system::Timer timer;
+					{
+						// From matching mode compute the pair list that have to be matched:
+						Pair_Set pairs;
+						switch (ePairmode)
+						{
+							////////////////////////////////////////////////////////////////////////////////////////
+							//
+							//
+							///////////////////////////////////////////////////////////////////////////////////////////
+						case PAIR_EXHAUSTIVE: pairs = exhaustivePairs(sfm_data_hash.GetViews().size()); break;
+						case PAIR_CONTIGUOUS: pairs = contiguousWithOverlap(sfm_data_hash.GetViews().size(), iMatchingVideoMode); break;
+						case PAIR_FROM_FILE:
+							if (!loadPairs(sfm_data_hash.GetViews().size(), sPredefinedPairList, pairs))
+							{
+								return EXIT_FAILURE;
+							}
+							break;
+						}
+						// Photometric matching of putative pairs
+						//GPU Parallel here 
+						//这里需要新写一个哈希码生成的类成员函数，每次读2个组进去到cascade_hasher_GPU(内存)里面，
+						//在cascade_hasher_GPU每次读2个块到GPU内存里
+						//
+						//
+						//这里每次读3个组进去到cascade_hasher_GPU(内存)里面，在cascade_hasher_GPU每次读3个块到GPU内存里
+						//注意每次读之前要把pairs(需要匹配的图像对)重新写好
+						collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches, &progress);
+						//---------------------------------------
+						//-- Export putative matches
+						//---------------------------------------
+						if (!Save(map_PutativesMatches, std::string(sMatchesOutputDir_hash + "/matches.putative.bin")))
+						{
+							std::cerr
+								<< "Cannot save computed matches in: "
+								<< std::string(sMatchesOutputDir_hash + "/matches.putative.bin");
+							return EXIT_FAILURE;
+						}
+					}
+					std::cout << "Task (Regions Matching) done in (s): " << timer.elapsed() << std::endl;
+				}
+				//-- export putative matches Adjacency matrix
+				PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
+					map_PutativesMatches,
+					stlplus::create_filespec(sMatchesOutputDir_hash, "PutativeAdjacencyMatrix", "svg"));
+				//-- export view pair graph once putative graph matches have been computed
+				{
+					std::set<IndexT> set_ViewIds;
+					std::transform(sfm_data_hash.GetViews().begin(), sfm_data_hash.GetViews().end(),
+						std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+					graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_PutativesMatches));
+					graph::exportToGraphvizData(
+						stlplus::create_filespec(sMatchesOutputDir_hash, "putative_matches"),
+						putativeGraph);
+				}
+
+				//---------------------------------------
+				// b. Geometric filtering of putative matches
+				//    - AContrario Estimation of the desired geometric model
+				//    - Use an upper bound for the a contrario estimated threshold
+				//---------------------------------------
+
+				std::unique_ptr<ImageCollectionGeometricFilter> filter_ptr(
+					new ImageCollectionGeometricFilter(&sfm_data_hash, regions_provider));
+
+				if (filter_ptr)
+				{
+					system::Timer timer;
+					const double d_distance_ratio = 0.6;
+
+					PairWiseMatches map_GeometricMatches;
+					switch (eGeometricModelToCompute)
+					{
+					case HOMOGRAPHY_MATRIX:
+					{
+						const bool bGeometric_only_guided_matching = true;
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_HMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching,
+							bGeometric_only_guided_matching ? -1.0 : d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case FUNDAMENTAL_MATRIX:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_FMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case ESSENTIAL_MATRIX:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_EMatrix_AC(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+
+						//-- Perform an additional check to remove pairs with poor overlap
+						std::vector<PairWiseMatches::key_type> vec_toRemove;
+						for (const auto & pairwisematches_it : map_GeometricMatches)
+						{
+							const size_t putativePhotometricCount = map_PutativesMatches.find(pairwisematches_it.first)->second.size();
+							const size_t putativeGeometricCount = pairwisematches_it.second.size();
+							const float ratio = putativeGeometricCount / static_cast<float>(putativePhotometricCount);
+							if (putativeGeometricCount < 50 || ratio < .3f) {
+								// the pair will be removed
+								vec_toRemove.push_back(pairwisematches_it.first);
+							}
+						}
+						//-- remove discarded pairs
+						for (const auto & pair_to_remove_it : vec_toRemove)
+						{
+							map_GeometricMatches.erase(pair_to_remove_it);
+						}
+					}
+					break;
+					case ESSENTIAL_MATRIX_ANGULAR:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_ESphericalMatrix_AC_Angular(4.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					case ESSENTIAL_MATRIX_ORTHO:
+					{
+						filter_ptr->Robust_model_estimation(
+							GeometricFilter_EOMatrix_RA(2.0, imax_iteration),
+							map_PutativesMatches, bGuided_matching, d_distance_ratio, &progress);
+						map_GeometricMatches = filter_ptr->Get_geometric_matches();
+					}
+					break;
+					}
+
+					//---------------------------------------
+					//-- Export geometric filtered matches
+					//---------------------------------------
+					if (!Save(map_GeometricMatches,
+						std::string(sMatchesOutputDir_hash + "/" + sGeometricMatchesFilename)))
+					{
+						std::cerr
+							<< "Cannot save computed matches in: "
+							<< std::string(sMatchesOutputDir_hash + "/" + sGeometricMatchesFilename);
+						return EXIT_FAILURE;
+					}
+
+					std::cout << "Task done in (s): " << timer.elapsed() << std::endl;
+
+					//-- export Adjacency matrix
+					std::cout << "\n Export Adjacency Matrix of the pairwise's geometric matches"
+						<< std::endl;
+					PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
+						map_GeometricMatches,
+						stlplus::create_filespec(sMatchesOutputDir_hash, "GeometricAdjacencyMatrix", "svg"));
+
+					//-- export view pair graph once geometric filter have been done
+					{
+						std::set<IndexT> set_ViewIds;
+						std::transform(sfm_data_hash.GetViews().begin(), sfm_data_hash.GetViews().end(),
+							std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+						graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_GeometricMatches));
+						graph::exportToGraphvizData(
+							stlplus::create_filespec(sMatchesOutputDir_hash, "geometric_matches"),
+							putativeGraph);
+					}
+				}
+			}
 		}
 		else {
 			cout << "error in first data exchange schedule! \n" << endl;
@@ -1280,3 +2227,4 @@ int computeMatches::ComputeMatches::computeMatches()
 
 	//这里计算匹配
 }
+int computeMatches::ComputeMatches::computeMatches() {}

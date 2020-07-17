@@ -74,6 +74,7 @@ namespace computeMatches {
 		/// - Export computed data
 		void test();
 		void computeZeroMeanDescriptors(Eigen::VectorXf &zero_mean_descriptor);
+		int computeHashes();
 		int computeMatches();
 	};
 
