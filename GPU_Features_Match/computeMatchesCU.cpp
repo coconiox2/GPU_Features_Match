@@ -50,6 +50,8 @@ using namespace openMVG::sfm;
 using namespace openMVG::matching_image_collection;
 using namespace std;
 
+using BaseMat = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
 #define max_descriptions_num_per_image 40000	//（4*keypointsNum）
 
 namespace openMVG {
@@ -410,44 +412,45 @@ int computeMatches::ComputeMatches::computeHashes()
 		std::cerr << "Unknown geometric model" << std::endl;
 		return EXIT_FAILURE;
 	}
-	//分组读入图片数据之前就先把GPU上常用的空间先申请好
-	//需要上传的一直用的数据也都上传
+	//分组读入图片数据之前就先把GPU上常用的空间先申请好//需要上传的一直用的数据也都上传
 	openMVG::matching::RTOC myRTOC;
-
 	CascadeHasher myCascadeHasher;
 	myCascadeHasher.Init(descriptionDimension);
-
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////这里先上传哈希计算所需要的数据 primary_hash_projection_ 
-
 	int primary_hash_projection_size = (myCascadeHasher.primary_hash_projection_.rows()) * (myCascadeHasher.primary_hash_projection_.cols());
-	const float *primary_hash_projection_data_temp = myCascadeHasher.primary_hash_projection_.data();
-	float *primary_hash_projection_data_temp_1 = (float*)malloc(primary_hash_projection_size * sizeof(float));
-	myRTOC.cToR(primary_hash_projection_data_temp, myCascadeHasher.primary_hash_projection_.rows(), myCascadeHasher.primary_hash_projection_.cols(), primary_hash_projection_data_temp_1);
 	//cpu上存放primary的指针
-	const float *primary_hash_projection_data = const_cast<const float*>(primary_hash_projection_data_temp_1);
-	//GPU上存放primary的指针
+	const float *primary_hash_projection_data = myCascadeHasher.primary_hash_projection_.data();
 	float *primary_hash_projection_data_device;
 	cudaMalloc((void **)&primary_hash_projection_data_device, sizeof(float) * primary_hash_projection_size);
-	// 将矩阵数据传递进 显存 中已经开辟好了的空间
 	cudaMemcpy(primary_hash_projection_data_device, primary_hash_projection_data, sizeof(float) * primary_hash_projection_size, cudaMemcpyHostToDevice);
-
-	////这里再上传哈希匹配所需要的数据 secondary_hash_projection_ 
-	{
-		
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////这里上传secondary_hash_projection_ 
+	//myCascadeHasher.secondary_hash_projection_.size() = 6
+	
+	float *secondary_hash_projection_data_CPU[6];
+	float *secondary_hash_projection_data_GPU[6];
+	for (int i = 0; i < 6; i++) {
+		secondary_hash_projection_data_CPU[i] = myCascadeHasher.secondary_hash_projection_[i].data();
+		int secondary_hash_projection_per_size = myCascadeHasher.secondary_hash_projection_[i].rows() *
+													myCascadeHasher.secondary_hash_projection_[i].cols();
+		cudaMalloc((void **)&secondary_hash_projection_data_GPU[i], sizeof(float) * secondary_hash_projection_per_size);
+		cudaMemcpy(secondary_hash_projection_data_GPU[i], secondary_hash_projection_data_CPU[i], 
+					sizeof(float) * secondary_hash_projection_per_size, cudaMemcpyHostToDevice);
 	}
-
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//分组读入图片数据，1个sfm_data就是一组的图像数据
 	//这里先计算哈希值
-	for (int i = 0; i < group_count; i++) {
+	for (int firstIter = 0; firstIter < group_count; firstIter++) {
 		char temp_i[2] = { ' ','\0' };
-		temp_i[0] = i + 48;
+		temp_i[0] = firstIter + 48;
 		const std::string str_i = temp_i;
 
-		if (i == 0) {
+		if (firstIter == 0) {
 			sSfM_Data_Filename_hash = sSfM_Data_FilenameDir_father + "DJI_" + str_i + "_build/" + "sfm_data.json";
 			sMatchesOutputDir_hash = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
 
-			temp_i[0] = i + 1 + 48;
+			temp_i[0] = firstIter + 1 + 48;
 			const std::string str_i_plus_1 = temp_i;
 			sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_i_plus_1 + "_build/" + "sfm_data.json";
 			sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "DJI_" + str_i_plus_1 + "_build/";
@@ -576,9 +579,9 @@ int computeMatches::ComputeMatches::computeHashes()
 						std::cout << "Use: ";
 						switch (ePairmode)
 						{
-						case PAIR_EXHAUSTIVE: std::cout << "exhaustive pairwise matching" << std::endl; break;
-						case PAIR_CONTIGUOUS: std::cout << "sequence pairwise matching" << std::endl; break;
-						case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
+							case PAIR_EXHAUSTIVE: std::cout << "exhaustive pairwise matching" << std::endl; break;
+							case PAIR_CONTIGUOUS: std::cout << "sequence pairwise matching" << std::endl; break;
+							case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
 						}
 
 						// Allocate the right Matcher according the Matching requested method
@@ -633,59 +636,18 @@ int computeMatches::ComputeMatches::computeHashes()
 							std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
 							return EXIT_FAILURE;
 						}
-						// Perform the matching
+						// Perform the cascade hashing
 						system::Timer timer;
 						{
-							// From matching mode compute the pair list that have to be matched:
-							Pair_Set pairs;
-							switch (ePairmode)
-							{
-								////////////////////////////////////////////////////////////////////////////////////////
-								//
-								////注意每次读之前要把pairs(需要匹配的图像对)重新写好
-								///////////////////////////////////////////////////////////////////////////////////////////
-							case PAIR_EXHAUSTIVE: pairs = exhaustivePairs(sfm_data_hash.GetViews().size()); break;
-							case PAIR_CONTIGUOUS: pairs = contiguousWithOverlap(sfm_data_hash.GetViews().size(), iMatchingVideoMode); break;
-							case PAIR_FROM_FILE:
-								if (!loadPairs(sfm_data_hash.GetViews().size(), sPredefinedPairList, pairs))
-								{
-									return EXIT_FAILURE;
-								}
-								break;
-							}
-							// Photometric matching of putative pairs
-							
-							
-							
-							
-							//先修改好used_index
-							// Collect used view indexes
+							// Collect used view indexes for an image group
 							std::set<IndexT> used_index;
-							// Sort pairs according the first index to minimize later memory swapping
-							//std::map use red&black tree to sort it's members automatically
-							//IndexT <--> vector,There are multiple views for each view to match
-							using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-							Map_vectorT map_Pairs;
-							for (const auto & pair_idx : pairs)
-							{
-								map_Pairs[pair_idx.first].push_back(pair_idx.second);
-								used_index.insert(pair_idx.first);
-								used_index.insert(pair_idx.second);
+							for (int i = 0; i < image_count_per_group; i++) {
+								used_index.insert(firstIter * image_count_per_group + i);
 							}
-
-							
-							//std::map<IndexT, HashedDescriptions> hashed_base_;
-
-							
-
 							openMVG::matching_image_collection::Cascade_Hash_Generate sCascade_Hash_Generate;
 							//第二层数据调度策略 CPU内存 <--> GPU内存
-							using BaseMat = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 							//1.启用零拷贝内存
 							cudaSetDeviceFlags(cudaDeviceMapHost);
-							
-							
-
 							for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
 								//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
 								std::vector <int> mat_I_rows;
@@ -699,7 +661,7 @@ int computeMatches::ComputeMatches::computeHashes()
 								//host存放当前块数据哈希计算结果的指针数组
 								float *hash_base_array_CPU[image_count_per_block];
 								//device存放当前块内的图像描述符数据的指针数组
-								const float *mat_I_point_array_GPU[image_count_per_block];
+								float *mat_I_point_array_GPU[image_count_per_block];
 								//device存放当前块数据哈希计算结果的指针数组
 								float *hash_base_array_GPU[image_count_per_block];
 								//保存整个块内数据描述符的数量大小
@@ -712,13 +674,26 @@ int computeMatches::ComputeMatches::computeHashes()
 								//host存放预读块内的图像描述符数据的指针数组
 								const float *mat_I_pre_point_array_CPU[image_count_per_block];
 								//host存放预读块内数据哈希计算结果的指针数组
-								float *hash_base_pre_array_CPU[image_count_per_block];
+								//float *hash_base_pre_array_CPU[image_count_per_block];
 								//device存放预读块内的图像描述符数据的指针数组
-								const float *mat_I_pre_point_array_GPU[image_count_per_block];
+								float *mat_I_pre_point_array_GPU[image_count_per_block];
 								//device存放预读块数据哈希计算结果的指针数组
-								float *hash_base_pre_array_GPU[image_count_per_block];
+								//float *hash_base_pre_array_GPU[image_count_per_block];
 
-								//存放当前块的所有数据哈希计算的结果
+								//initialize all pointers
+								for (int i = 0; i < image_count_per_block; i++) {
+									mat_I_point_array_CPU[i] = NULL;
+									hash_base_array_CPU[i] = NULL;
+									mat_I_point_array_GPU[i] = NULL;
+									hash_base_array_GPU[i] = NULL;
+
+									mat_I_pre_point_array_CPU[i] = NULL;
+									//hash_base_pre_array_CPU[i] = NULL;
+									mat_I_pre_point_array_GPU[i] = NULL;
+									//hash_base_pre_array_GPU[i] = NULL;
+								}
+
+								//store all hash result for this block
 								std::map<IndexT, HashedDescriptions> hashed_base_;
 								
 								{
@@ -735,25 +710,22 @@ int computeMatches::ComputeMatches::computeHashes()
 											const size_t dimension = regionsI->DescriptorLength();
 
 											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
-											//descriptionsMat = descriptions.template cast<float>();
-											//mat_I = mat_I.template cast<float>();
-											
+											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.rows(); k++) {
 												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
 											}
-											const float *descriptionsMat_data_temp = descriptionsMat.data();
-											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
-											//openMVG::matching::RTOC myRTOC;
-											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
-											
-											myCascadeHasher.upload_descriptions_before_hash(descriptionsMat_data_temp_1, mat_I_point_array_CPU[m],
-												mat_I_point_array_GPU[m], hash_base_array_CPU[m],hash_base_array_GPU[m], mat_I.rows());
-											
+											float *descriptionsMat_data_temp = descriptionsMat.data();
+											mat_I_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
+											//upload mat_I_array_CPU[m]
+											{
+												int descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
+												cudaMalloc((void **)&mat_I_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
+												cudaMemcpy(mat_I_point_array_GPU[m], mat_I_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
+											}
 											mat_I_rows.push_back(mat_I.rows());
-											/*hashed_base_size += mat_I.rows();
-											vec_Mat_I.push_back(mat_I);*/
+											
 										}
 										//处理预读块内每一张图片的数据后上传到GPU上
 										for (int m = 0; m < image_count_per_block; ++m)
@@ -767,48 +739,40 @@ int computeMatches::ComputeMatches::computeHashes()
 											const size_t dimension = regionsI->DescriptorLength();
 
 											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
-											//descriptionsMat = descriptions.template cast<float>();
-											//mat_I = mat_I.template cast<float>();
-
+											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.rows(); k++) {
 												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
 											}
-											const float *descriptionsMat_data_temp = descriptionsMat.data();
-											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
-											//openMVG::matching::RTOC myRTOC;
-											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
-											//2.分配主机内存
-											cudaHostAlloc((void**)&mat_I_pre_point_array_CPU[m], (mat_I.rows() * mat_I.cols()),
-												cudaHostAllocWriteCombined | cudaHostAllocMapped);
-											std::cout << "cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											cudaHostAlloc((void**)&hash_base_pre_array_CPU[m], (mat_I.rows() * descriptionDimension),
-												cudaHostAllocWriteCombined | cudaHostAllocMapped);
-											std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											mat_I_pre_point_array_CPU[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
-
-											//3.将常规的主机指针转换成指向设备内存空间的指针
-											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
-											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
-											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-
+											float *descriptionsMat_data_temp = descriptionsMat.data();
+											mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
+											//upload mat_I_pre_array_CPU[m]
+											{
+												int descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
+												cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
+												cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
+											}
 											mat_I_pre_rows.push_back(mat_I.rows());
-											/*hashed_base_size += mat_I.rows();
-											vec_Mat_I.push_back(mat_I);*/
 										}
 										
 										//为当前块数据做hash，并将其存储到本地文件当中
 										{
 											for (int m = 0; m < image_count_per_block; ++m) {
+												int hash_base_array_GPU_size = mat_I_rows[m] * descriptionDimension;
+												cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
 												myCascadeHasher.hash_gen( mat_I_rows[m], descriptionDimension,
 													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
 													hash_base_array_GPU[m] );
+												cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+												
+												//free
+												{
+													cudaFree(hash_base_array_GPU[m]);
+													mat_I_point_array_CPU[m] = NULL;
+													hash_base_array_GPU[m] = NULL;
+												}
+												
 												
 												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
 												{
@@ -822,6 +786,45 @@ int computeMatches::ComputeMatches::computeHashes()
 														{
 															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 														}
+
+														// Determine the bucket index for each group.
+														//Eigen::VectorXf secondary_projection;
+														for (int j = 0; j < myCascadeHasher.nb_bucket_groups_; ++j)
+														{
+															uint16_t bucket_id = 0;
+
+															float *secondary_projection_CPU;
+															float *secondary_projection_GPU;
+															int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_rows[m];
+															cudaMalloc((void **)secondary_projection_GPU,
+																		sizeof(float) * secondary_projection_CPU_size);
+															//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+															myCascadeHasher.determine_buket_index_for_each_group(
+																secondary_projection_GPU,
+																secondary_hash_projection_data_GPU[j],
+																mat_I_point_array_GPU[m],
+																myCascadeHasher.nb_bits_per_bucket_,
+																myCascadeHasher.nb_hash_code_,
+																mat_I_rows[m]
+															);
+															cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+																		sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+
+															Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+																									(secondary_projection_CPU, secondary_projection_CPU_size);
+															
+															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
+															{
+																bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															}
+															hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														}
+													}
+													//free
+													{
+														cudaFree(mat_I_point_array_GPU[m]);
+														mat_I_point_array_GPU[m] = NULL;
+														hash_base_array_CPU[m] = NULL;
 													}
 												}
 												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
@@ -833,9 +836,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										//变换当前块与预读块的相关数据
 										for (int m = 0; m < image_count_per_block; ++m) {
 											mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
+											mat_I_pre_point_array_CPU[m] = NULL;
 											mat_I_rows[m] = mat_I_pre_rows[m];
+											cudaMalloc((void**)&mat_I_point_array_GPU[m], sizeof(float) * mat_I_rows[m] *descriptionDimension);
+											cudaMalloc((void**)&hash_base_array_GPU[m], sizeof(float) * mat_I_rows[m] * descriptionDimension);
+											mat_I_point_array_GPU[m] = mat_I_pre_point_array_GPU[m];
 										}
+										
+
 										//再预读一块数据进来
+										//处理预读块内每一张图片的数据后上传到GPU上
 										for (int m = 0; m < image_count_per_block; ++m)
 										{
 											std::set<IndexT>::const_iterator iter = used_index.begin();
@@ -847,40 +857,21 @@ int computeMatches::ComputeMatches::computeHashes()
 											const size_t dimension = regionsI->DescriptorLength();
 
 											Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
-											//descriptionsMat = descriptions.template cast<float>();
-											//mat_I = mat_I.template cast<float>();
-
+											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.rows(); k++) {
 												descriptionsMat.row(k) -= computeMatches::zero_mean_descriptor;
 											}
-											const float *descriptionsMat_data_temp = descriptionsMat.data();
-											float *descriptionsMat_data_temp_1 = (float*)malloc(descriptionsMat.rows()*descriptionsMat.cols() * sizeof(float));
-											//openMVG::matching::RTOC myRTOC;
-											myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
-											//2.分配主机内存
-											cudaHostAlloc((void**)&mat_I_pre_point_array_CPU[m], (mat_I.rows() * mat_I.cols()),
-												cudaHostAllocWriteCombined | cudaHostAllocMapped);
-											std::cout << "cudaHostAlloc mat_I_point_array_CPU\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											cudaHostAlloc((void**)&hash_base_pre_array_CPU[m], (mat_I.rows() * descriptionDimension),
-												cudaHostAllocWriteCombined | cudaHostAllocMapped);
-											std::cout << "cudaHostAlloc hash_base_array_CPU\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											mat_I_pre_point_array_CPU[m] = const_cast<const float*> (descriptionsMat_data_temp_1);
-
-											//3.将常规的主机指针转换成指向设备内存空间的指针
-											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
-											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-											cudaHostGetDevicePointer((void **)&mat_I_pre_point_array_GPU[m], (void *)mat_I_pre_point_array_CPU[m], 0);
-											std::cout << "cudaHostGetDevicePointer\n" << std::endl;
-											cudaGetErrorString(cudaGetLastError());
-
+											float *descriptionsMat_data_temp = descriptionsMat.data();
+											mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
+											//upload mat_I_pre_array_CPU[m]
+											{
+												int descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
+												cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
+												cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
+											}
 											mat_I_pre_rows.push_back(mat_I.rows());
-											/*hashed_base_size += mat_I.rows();
-											vec_Mat_I.push_back(mat_I);*/
 										}
 									}
 									else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
@@ -1081,7 +1072,6 @@ int computeMatches::ComputeMatches::computeHashes()
 										return EXIT_FAILURE;
 									}
 								}
-								cublasDestroy(handle);
 							}
 							
 							//将得到的哈希值hashed_base_传入到match里面去进行匹配，不过下面这一段应该放在下一个for循环(match的数据调度策略)里面去做
@@ -2227,4 +2217,18 @@ int computeMatches::ComputeMatches::computeHashes()
 
 	//这里计算匹配
 }
-int computeMatches::ComputeMatches::computeMatches() {}
+int computeMatches::ComputeMatches::computeMatches() {
+	//// From matching mode compute the pair list that have to be matched:
+	//Pair_Set pairs;
+	//switch (ePairmode)
+	//{
+	//case PAIR_EXHAUSTIVE: pairs = exhaustivePairs(sfm_data_hash.GetViews().size()); break;
+	//case PAIR_CONTIGUOUS: pairs = contiguousWithOverlap(sfm_data_hash.GetViews().size(), iMatchingVideoMode); break;
+	//case PAIR_FROM_FILE:
+	//	if (!loadPairs(sfm_data_hash.GetViews().size(), sPredefinedPairList, pairs))
+	//	{
+	//		return EXIT_FAILURE;
+	//	}
+	//	break;
+	//}
+}
