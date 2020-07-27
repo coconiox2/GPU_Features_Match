@@ -78,13 +78,17 @@
 
 #include <cstdlib>
 
-
+#include <stdio.h>
 #include <cmath>
 #include <ctime>
+#include <fstream>  
 #include <iostream>
 #include <random>
 #include <utility>
+#include <map> 
 #include <vector>
+#include <string>
+#include <sstream>  
 
 
 #include "openMVG/matching/indMatch.hpp"
@@ -428,10 +432,15 @@ namespace openMVG {
 			
 			void hash_gen
 			(
-				int mat_I_rows_count,
+				//右式B的列数
+				int mat_I_cols_count,
+				//左式A的行数列数 右式B的行数均为descriptionDimension
 				int descriptionDimension,
+				//左式A
 				float *primary_hash_projection_data_device,
+				//右式B
 				const float *descriptions_GPU,
+				//结果C
 				float *hash_base_GPU
 			)
 			{
@@ -461,35 +470,20 @@ namespace openMVG {
 					//C(result)
 					handle, //blas库对象
 					CUBLAS_OP_N, //矩阵A不转置
-					CUBLAS_OP_T, //矩阵B转置
+					CUBLAS_OP_N, //矩阵B不转置
 					descriptionDimension, //矩阵A、C的行数,也即结果的行数
-					mat_I_rows_count, //矩阵B、C的列数，也即结果的列数
+					mat_I_cols_count, //矩阵B、C的列数，也即结果的列数
 					descriptionDimension, //矩阵A的列数或者B的行数
 					&a,  //alpha的值
 					primary_hash_projection_data_device, //左矩阵A
-					descriptionDimension, //A的leading dimension
+					descriptionDimension, //A的leading dimension,以列为主就填行数
 					descriptions_GPU, //右矩阵 B
-					mat_I_rows_count, //矩阵B的leading dimension
+					descriptionDimension, //矩阵B的leading dimension,以列为主就填行数
 					&b,             //beta的值
 					hash_base_GPU, //结果矩阵C
-					mat_I_rows_count//结果矩阵C的leading dimension
+					descriptionDimension//结果矩阵C的leading dimension,以列为主就填行数
 				);
-				//status = cublasSgemm(
-				//	handle,    // blas 库对象
-				//	CUBLAS_OP_N,    // 矩阵 A 属性参数
-				//	CUBLAS_OP_N,    // 矩阵 B 属性参数	
-				//	primary_hash_projection_.cols(),    // B, C 的列数, n
-				//	mat_I_rows_count,    // A, C 的行数 m
-				//	descriptionDimension,    // A 的列数和 B 的行数 k
-				//	&a,    // 运算式的 α 值
-				//	primary_hash_projection_data_device,    // B 在显存中的地址
-				//	primary_hash_projection_.cols(),    // B, C 的列数, n
-				//	descriptions_GPU,    // A 在显存中的地址
-				//	descriptionDimension,    // ldb k
-				//	&b,    // 运算式的 β 值
-				//	hash_base_GPU,    // C 在显存中的地址(结果矩阵)
-				//	primary_hash_projection_.cols()    // B, C 的列数, n
-				//);
+				cublasDestroy(handle);
 			}
 
 			void determine_buket_index_for_each_group
@@ -504,8 +498,9 @@ namespace openMVG {
 				int secondary_rows,
 				//左式A的列数 128
 				int secondary_cols,
-				//右式B的行数 
-				int descrptions_rows
+				//右式B的列数 
+				int descrptions_cols
+				//右式B的行数就是descriptionDimension
 			)
 			{
 				dim3 threads(1, 1);
@@ -534,18 +529,18 @@ namespace openMVG {
 					//C(result)
 					handle, //blas库对象
 					CUBLAS_OP_N, //矩阵A不转置
-					CUBLAS_OP_T, //矩阵B转置
+					CUBLAS_OP_N, //矩阵B转置
 					secondary_rows, //矩阵A、C的行数,也即结果的行数
-					descriptionDimension, //矩阵B、C的列数，也即结果的列数
-					secondary_cols, //矩阵A的列数或者B的行数
+					descrptions_cols, //矩阵B、C的列数，也即结果的列数
+					descriptionDimension, //矩阵A的列数或者B的行数
 					&a,  //alpha的值
 					secondary_hash_projection_j, //左矩阵A
-					descriptionDimension, //A的leading dimension
+					secondary_rows, //A的leading dimension,以列为主就填行数
 					descriptions_GPU, //右矩阵 B
-					descrptions_rows, //矩阵B的leading dimension
+					descriptionDimension, //矩阵B的leading dimension,以列为主就填行数
 					&b,             //beta的值
 					secondary_projection_GPU, //结果矩阵C
-					descriptionDimension//结果矩阵C的leading dimension
+					secondary_rows//结果矩阵C的leading dimension
 				);
 				cublasDestroy(handle);
 			}

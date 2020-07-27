@@ -84,6 +84,7 @@
     <ClInclude Include="cascade_hasher_GPU.hpp" />
     <ClInclude Include="Cascade_Hashing_Matcher_Regions_GPU.hpp" />
     <ClInclude Include="computeMatchesCU.h" />
+    <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Cascade_Hashing_Matcher_Regions_GPU.cpp" />
