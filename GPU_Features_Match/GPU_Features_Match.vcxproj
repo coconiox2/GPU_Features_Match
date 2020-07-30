@@ -78,9 +78,6 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="computeMatches.cu" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="cascade_hasher_GPU.hpp" />
     <ClInclude Include="Cascade_Hashing_Matcher_Regions_GPU.hpp" />
     <ClInclude Include="computeMatchesCU.h" />
@@ -90,6 +87,13 @@
     <ClCompile Include="Cascade_Hashing_Matcher_Regions_GPU.cpp" />
     <ClCompile Include="computeMatchesCU.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="computeMatches.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(fileName).obj</Outputs>
+    </CudaCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

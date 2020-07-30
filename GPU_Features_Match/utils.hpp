@@ -123,7 +123,7 @@ namespace hashed_code_file_io {
 	bool write_hashed_base
 	(
 		const std::string & sfileNameHash,
-		std::map<IndexT, HashedDescriptions> &shashed_base_
+		std::map<openMVG::IndexT, HashedDescriptions> &shashed_base_
 	)
 	{
 		ofstream out(sfileNameHash);
@@ -145,7 +145,7 @@ namespace hashed_code_file_io {
 	bool read_hashed_base
 	(
 		const std::string & sfileNameHash,
-		std::map<IndexT, HashedDescriptions> &shashed_base_
+		std::map<openMVG::IndexT, HashedDescriptions> &shashed_base_
 	)
 	{
 		ifstream in(sfileNameHash);

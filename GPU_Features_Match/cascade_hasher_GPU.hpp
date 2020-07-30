@@ -444,8 +444,8 @@ namespace openMVG {
 				float *hash_base_GPU
 			)
 			{
-				dim3 threads(1, 1);
-				dim3 grid(1, 1);
+				/*dim3 threads(1, 1);
+				dim3 grid(1, 1);*/
 				// 创建并初始化 CUBLAS 库对象
 				cublasHandle_t handle;
 				int status = cublasCreate(&handle);
@@ -503,8 +503,8 @@ namespace openMVG {
 				//右式B的行数就是descriptionDimension
 			)
 			{
-				dim3 threads(1, 1);
-				dim3 grid(1, 1);
+				/*dim3 threads(1, 1);
+				dim3 grid(1, 1);*/
 				// 创建并初始化 CUBLAS 库对象
 				cublasHandle_t handle;
 				int status = cublasCreate(&handle);
