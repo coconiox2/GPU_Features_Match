@@ -4,16 +4,18 @@
 
 
 #include <Eigen/Dense>
+#include "openMVG/stl/dynamic_bitset.hpp"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
+//#include "cascade_hasher_GPU.hpp"
 #include <string>
 
+//using namespace openMVG::matching;
 
 namespace computeMatches {
-
 	const int group_count = 6;
-	const int block_count_per_group = 2;
+	const int block_count_per_group = 4;
 	const int image_count_per_block = 3;
-	const int image_count_per_group = 6;
+	const int image_count_per_group = 12;
 	const int descriptionDimension = 128;
 	//Defines the path and name of the read and output files
 
@@ -43,40 +45,67 @@ namespace computeMatches {
 		std::vector<std::vector<Bucket>> buckets;
 	};
 
-	Eigen::VectorXf zero_mean_descriptor;
-	const bool computeMatchesWithGPU = true;
+	////////////////////////////
+	/*
+	compute HashCode
+	*/
+	///////////////////////////
 	
-	class ComputeMatches {
-	public:
-		//geometric model
-		//fundamental matrix、essential matrix、homography matrix
-		//angular essential matrix、ortho essential matrix
-		enum EGeometricModel
-		{
-			FUNDAMENTAL_MATRIX = 0,
-			ESSENTIAL_MATRIX = 1,
-			HOMOGRAPHY_MATRIX = 2,
-			ESSENTIAL_MATRIX_ANGULAR = 3,
-			ESSENTIAL_MATRIX_ORTHO = 4
-		};
-		//匹配对模式
-		//详细匹配对、临近匹配对、从文件中读取的匹配对
-		enum EPairMode
-		{
-			PAIR_EXHAUSTIVE = 0,
-			PAIR_CONTIGUOUS = 1,
-			PAIR_FROM_FILE = 2
-		};
-		/// Compute corresponding features between a series of views:
-		/// - Load view images description (regions: features & descriptors)
-		/// - Compute putative local feature matches (descriptors matching)
-		/// - Compute geometric coherent feature matches (robust model estimation from putative matches)
-		/// - Export computed data
-		void test();
-		void computeZeroMeanDescriptors(Eigen::VectorXf &zero_mean_descriptor);
-		int computeHashes();
-		int computeMatches();
+	//geometric model
+	//fundamental matrix、essential matrix、homography matrix
+	//angular essential matrix、ortho essential matrix
+	enum EGeometricModel
+	{
+		FUNDAMENTAL_MATRIX = 0,
+		ESSENTIAL_MATRIX = 1,
+		HOMOGRAPHY_MATRIX = 2,
+		ESSENTIAL_MATRIX_ANGULAR = 3,
+		ESSENTIAL_MATRIX_ORTHO = 4
 	};
+	//匹配对模式
+	//详细匹配对、临近匹配对、从文件中读取的匹配对
+	enum EPairMode
+	{
+		PAIR_EXHAUSTIVE = 0,
+		PAIR_CONTIGUOUS = 1,
+		PAIR_FROM_FILE = 2
+	};
+	/// Compute corresponding features between a series of views:
+	/// - Load view images description (regions: features & descriptors)
+	/// - Compute putative local feature matches (descriptors matching)
+	/// - Compute geometric coherent feature matches (robust model estimation from putative matches)
+	/// - Export computed data
+	void test();
+
+	/*void computeCurrentGroupHashcode();
+
+	
+
+	void computeCurrentBlockHashcode
+	(
+		int secondIter,
+		std::vector <int> mat_I_cols,
+		float **hash_base_array_GPU,
+		CascadeHasher myCascadeHasher,
+		float *primary_hash_projection_data_device,
+		float **mat_I_point_array_GPU,
+		float **hash_base_array_CPU,
+		const float **mat_I_point_array_CPU,
+		std::map<openMVG::IndexT, HashedDescriptions> &hashed_base_,
+		float **secondary_hash_projection_data_GPU,
+		string sMatchesOutputDir_hash
+	);
+*/
+	void computeZeroMeanDescriptors(Eigen::VectorXf &zero_mean_descriptor);
+	int computeHashes(Eigen::VectorXf &_zero_mean_descriptor);
+
+	////////////////////////////
+	/*
+	compute Match
+	*/
+	///////////////////////////
+	int computeMatches();
+	
 
 }//namespace computeMatches
 

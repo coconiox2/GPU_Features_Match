@@ -1,66 +1,7 @@
 #pragma once
-// This file is part of OpenMVG, an Open Multiple View Geometry C++ library.
-
-// Copyright (c) 2015 Pierre MOULON.
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 #ifndef OPENMVG_MATCHING_CASCADE_HASHER_GPU_HPP
 #define OPENMVG_MATCHING_CASCADE_HASHER_GPU_HPP
-
-//------------------
-//-- Bibliography --
-//------------------
-//- [1] "Fast and Accurate Image Matching with Cascade Hashing for 3D Reconstruction"
-//- Authors: Jian Cheng, Cong Leng, Jiaxiang Wu, Hainan Cui, Hanqing Lu.
-//- Date: 2014.
-//- Conference: CVPR.
-//
-// This implementation is based on the Theia library implementation.
-//
-// Update compare to the initial paper [1] and initial author code:
-// - hashing projection is made by using Eigen to use vectorization (Theia)
-// - replace the BoxMuller random number generation by C++ 11 random number generation (OpenMVG)
-// - this implementation can support various descriptor length and internal type (OpenMVG)
-// -  SIFT, SURF, ... all scalar based descriptor
-//
-
-// Copyright (C) 2014 The Regents of the University of California (Regents).
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//
-//     * Neither the name of The Regents or University of California nor the
-//       names of its contributors may be used to endorse or promote products
-//       derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-//
-// Please contact the author of this library if you have any questions.
-// Author: Chris Sweeney (cmsweeney@cs.ucsb.edu)
-
+#include "computeMatchesCU.h"
 //CUDA V 10.2
 
 #include <algorithm>
@@ -69,12 +10,12 @@
 #include "device_launch_parameters.h"
 #include "cublas_v2.h"
 
-//cuda v10.2 的thrust库
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/generate.h>
-#include <thrust/sort.h>
-#include <thrust/copy.h>
+////cuda v10.2 的thrust库
+//#include <thrust/device_vector.h>
+//#include <thrust/host_vector.h>
+//#include <thrust/generate.h>
+//#include <thrust/sort.h>
+//#include <thrust/copy.h>
 
 #include <cstdlib>
 
@@ -90,13 +31,12 @@
 #include <string>
 #include <sstream>  
 
-
 #include "openMVG/matching/indMatch.hpp"
 #include "openMVG/matching/metric.hpp"
 #include "openMVG/numeric/eigen_alias_definition.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
 
-#include "computeMatchesCU.h"
+
 using namespace computeMatches;
 namespace openMVG {
 	namespace matching {
@@ -143,20 +83,8 @@ namespace openMVG {
 				return;
 			}
 		};
-		//class cascadeHasher_hash {
-		//public:
-		//	void Hash
-		//	(
-		//		//offer openMVG::features & openMVG::descriptor
-		//		const std::shared_ptr<sfm::Regions_Provider> & regions_provider,
-		//		std::map<IndexT, HashedDescriptions> & hashed_base_,
-		//		C_Progress * my_progress_bar
-		//	)
-		//	{
-		//	
-		//	}
-		//};
-		class CascadeHasher {
+		
+		class CascadeHasherGPU {
 		public:
 
 			// The number of bucket bits.
@@ -169,7 +97,7 @@ namespace openMVG {
 			int nb_buckets_per_group_;
 
 		
-			CascadeHasher() = default;
+			CascadeHasherGPU() = default;
 
 			// Creates the hashing projections (cascade of two level of hash codes)
 			bool Init
@@ -218,7 +146,7 @@ namespace openMVG {
 			}
 
 			template <typename MatrixT>
-			static Eigen::VectorXf GetZeroMeanDescriptor
+			Eigen::VectorXf GetZeroMeanDescriptor
 			(
 				const MatrixT & descriptions
 			)
@@ -226,8 +154,7 @@ namespace openMVG {
 				if (descriptions.rows() == 0) {
 					return{};
 				}
-				// Compute the ZeroMean descriptor
-				return descriptions.template cast<float>().colwise().mean();
+				return descriptions.template cast<float>().rowwise().mean();
 			}
 
 			template <typename MatrixT>
@@ -430,7 +357,7 @@ namespace openMVG {
 				//return hashed_descriptions;
 			}
 			
-			void hash_gen
+			float* hash_gen
 			(
 				//右式B的列数
 				int mat_I_cols_count,
@@ -439,9 +366,7 @@ namespace openMVG {
 				//左式A
 				float *primary_hash_projection_data_device,
 				//右式B
-				const float *descriptions_GPU,
-				//结果C
-				float *hash_base_GPU
+				const float *descriptions_GPU
 			)
 			{
 				/*dim3 threads(1, 1);
@@ -463,6 +388,9 @@ namespace openMVG {
 				float a = 1; float b = 0;
 				// 矩阵相乘。该函数必然将数组解析成列优先数组
 				
+				float *result;
+				cudaMalloc((void **)&result, sizeof(float) * mat_I_cols_count * descriptionDimension);
+
 				status = cublasSgemm
 				(
 					//A(primary_hash_proejection)
@@ -480,16 +408,16 @@ namespace openMVG {
 					descriptions_GPU, //右矩阵 B
 					descriptionDimension, //矩阵B的leading dimension,以列为主就填行数
 					&b,             //beta的值
-					hash_base_GPU, //结果矩阵C
+					result, //结果矩阵C
 					descriptionDimension//结果矩阵C的leading dimension,以列为主就填行数
 				);
 				cublasDestroy(handle);
+				return result;
 			}
 
-			void determine_buket_index_for_each_group
+			float* determine_buket_index_for_each_group
 			(
-				//计算结果C
-				float *secondary_projection_GPU,
+				
 				//左式A
 				float *secondary_hash_projection_j,
 				//右式B
@@ -522,6 +450,9 @@ namespace openMVG {
 				float a = 1; float b = 0;
 				// 矩阵相乘。该函数必然将数组解析成列优先数组
 
+				float *result;
+				cudaMalloc((void **)&result, sizeof(float) * secondary_rows * descrptions_cols);
+
 				status = cublasSgemm
 				(
 					//A(primary_hash_proejection)
@@ -529,20 +460,22 @@ namespace openMVG {
 					//C(result)
 					handle, //blas库对象
 					CUBLAS_OP_N, //矩阵A不转置
-					CUBLAS_OP_N, //矩阵B转置
+					CUBLAS_OP_N, //矩阵B不转置
 					secondary_rows, //矩阵A、C的行数,也即结果的行数
 					descrptions_cols, //矩阵B、C的列数，也即结果的列数
-					descriptionDimension, //矩阵A的列数或者B的行数
+					//computeMatches::descriptionDimension, //矩阵A的列数或者B的行数
+					secondary_cols, //A的列数 B的行数
 					&a,  //alpha的值
 					secondary_hash_projection_j, //左矩阵A
 					secondary_rows, //A的leading dimension,以列为主就填行数
 					descriptions_GPU, //右矩阵 B
-					descriptionDimension, //矩阵B的leading dimension,以列为主就填行数
+					computeMatches::descriptionDimension, //矩阵B的leading dimension,以列为主就填行数
 					&b,             //beta的值
-					secondary_projection_GPU, //结果矩阵C
+					result, //结果矩阵C
 					secondary_rows//结果矩阵C的leading dimension
 				);
 				cublasDestroy(handle);
+				return result;
 			}
 			// Matches two collection of hashed descriptions with a fast matching scheme
 			// based on the hash codes previously generated.

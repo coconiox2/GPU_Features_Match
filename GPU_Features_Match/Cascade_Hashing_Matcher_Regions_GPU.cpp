@@ -21,6 +21,7 @@
 
 #include "third_party/progress/progress.hpp"
 
+/*
 namespace openMVG {
 	namespace matching_image_collection {
 
@@ -334,3 +335,4 @@ namespace openMVG {
 
 	} // namespace openMVG
 } // namespace matching_image_collection
+*/

@@ -48,6 +48,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -79,12 +81,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="cascade_hasher_GPU.hpp" />
-    <ClInclude Include="Cascade_Hashing_Matcher_Regions_GPU.hpp" />
     <ClInclude Include="computeMatchesCU.h" />
     <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Cascade_Hashing_Matcher_Regions_GPU.cpp" />
     <ClCompile Include="computeMatchesCU.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

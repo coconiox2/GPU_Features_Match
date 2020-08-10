@@ -1,6 +1,6 @@
 #include "utils.hpp"
 #include "computeMatchesCU.h"
-#include "Cascade_Hashing_Matcher_Regions_GPU.hpp"
+//#include "Cascade_Hashing_Matcher_Regions_GPU.hpp"
 #include "cascade_hasher_GPU.hpp"
 
 //openMVG
@@ -15,6 +15,9 @@
 #include "openMVG/matching_image_collection/GeometricFilter.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
+
+#include "openMVG/types.hpp"
+
 #include "openMVG/sfm/pipelines/sfm_regions_provider_cache.hpp"
 #include "openMVG/matching_image_collection/F_ACRobust.hpp"
 #include "openMVG/matching_image_collection/E_ACRobust.hpp"
@@ -50,206 +53,13 @@ using namespace openMVG::sfm;
 using namespace openMVG::matching_image_collection;
 using namespace std;
 
-using BaseMat = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
-#define max_descriptions_num_per_image 40000	//（4*keypointsNum）
-
-//namespace openMVG {
-//	namespace matching_image_collection {
-//		/*void checkCUDAError(const char *msg) {
-//			cudaError_t err = cudaGetLastError();
-//			if (cudaSuccess != err) {
-//				fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString(err));
-//				exit(EXIT_FAILURE);
-//			}
-//		}*/
-//		static bool save_hash_to_file() {
-//			
-//		}
-//		class Cascade_Hash_Generate {
-//		public:
-//			
-//			using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-//			
-//			template <typename ScalarT>
-//			void Hash
-//			(
-//				//offer openMVG::features & openMVG::descriptor
-//				const sfm::Regions_Provider & regions_provider,
-//				std::map<IndexT, HashedDescriptions> & hashed_base_,
-//				//pairs of views which need to be match and calculate
-//				const Pair_Set & pairs,
-//				Map_vectorT map_Pairs,
-//				std::set<IndexT> used_index,
-//				const int firstHash = 0,
-//				C_Progress * my_progress_bar
-//			) 
-//			{
-//				
-//				
-//
-//				//// Collect used view indexes
-//				//std::set<IndexT> used_index;
-//				//// Sort pairs according the first index to minimize later memory swapping
-//				////std::map use red&black tree to sort it's members automatically
-//				////IndexT <--> vector,There are multiple views for each view to match
-//				//using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-//				//Map_vectorT map_Pairs;
-//				//for (const auto & pair_idx : pairs)
-//				//{
-//				//	map_Pairs[pair_idx.first].push_back(pair_idx.second);
-//				//	used_index.insert(pair_idx.first);
-//				//	used_index.insert(pair_idx.second);
-//				//}
-//
-//				if (!my_progress_bar)
-//					my_progress_bar = &C_Progress::dummy();
-//				my_progress_bar->restart(used_index.size(), "\n- hash generating -\n");
-//
-//				//A matrix with an element type a, unknown number of rows and columns, and stored as rows
-//				using BaseMat = Eigen::Matrix<ScalarT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-//
-//				// Init the cascade hasher
-//				CascadeHasher cascade_hasher;
-//				if (!used_index.empty())
-//				{
-//					const IndexT I = *used_index.begin();
-//					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-//					const size_t dimension = regionsI->DescriptorLength();
-//					cascade_hasher.Init(dimension);
-//				}
-//
-//				//std::map<IndexT, HashedDescriptions> hashed_base_;
-//
-//				// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
-//				// A vector of undetermined size but with a value of float data
-//				Eigen::VectorXf zero_mean_descriptor;
-//				{
-//					// A matrix of float type whose size is undetermined
-//					Eigen::MatrixXf matForZeroMean;
-//					for (int i = 0; i < used_index.size(); ++i)
-//					{
-//						std::set<IndexT>::const_iterator iter = used_index.begin();
-//						std::advance(iter, i);
-//						const IndexT I = *iter;
-//						const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-//						//raw data: it seems like return the first descriptor（regionsI's descriptors）'s pointer
-//						//Regardless of the storage type of the descriptor, it is converted to ScalarT
-//						const ScalarT * tabI =
-//							reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-//						const size_t dimension = regionsI->DescriptorLength();
-//						if (i == 0)
-//						{
-//							//Each row of the matrix is the size of a descriptor
-//							matForZeroMean.resize(used_index.size(), dimension);
-//							matForZeroMean.fill(0.0f);
-//						}
-//						if (regionsI->RegionCount() > 0)
-//						{
-//							Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-//							//GPU parallel here may be slower
-//							//return descriptions.template cast<float>().colwise().mean();
-//							matForZeroMean.row(i) = CascadeHasher::GetZeroMeanDescriptor(mat_I);
-//						}
-//					}
-//					//GPU parallel here may be slower
-//					zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(matForZeroMean);
-//				}
-//
-//				openMVG::matching::RTOC myRTOC;
-//				//在这里把zero_mean_descriptor和primary_hash_projection_上传到device上去
-//				{
-//
-//					const float *primary_hash_projection_data_temp = cascade_hasher.primary_hash_projection_.data();
-//					const float *secondary_hash_projection_data_temp = cascade_hasher.secondary_hash_projection_.data();
-//
-//					float *primary_hash_projection_data_temp_1 = (float*)malloc(cascade_hasher.primary_hash_projection_.rows()*cascade_hasher.primary_hash_projection_.cols() * sizeof(float));
-//					float *secondary_hash_projection_data_temp_1 = (float*)malloc(cascade_hasher.secondary_hash_projection_.rows()*cascade_hasher.secondary_hash_projection_.cols() * sizeof(float));
-//
-//					//行优先转化为列优先
-//					myRTOC.cToR(primary_hash_projection_data_temp, cascade_hasher.primary_hash_projection_.rows(), cascade_hasher.primary_hash_projection_.cols(), primary_hash_projection_data_temp_1);
-//					myRTOC.cToR(secondary_hash_projection_data_temp, cascade_hasher.secondary_hash_projection_.rows(), cascade_hasher.secondary_hash_projection_.cols(), secondary_hash_projection_data_temp_1);
-//					const float *primary_hash_projection_data = const_cast<const float*>(primary_hash_projection_data_temp_1);
-//					const float *secondary_hash_projection_data = const_cast<const float*>(secondary_hash_projection_data_temp_1);
-//					int primary_hash_projection_size = (cascade_hasher.primary_hash_projection_.rows()) * (cascade_hasher.primary_hash_projection_.cols());
-//					int secondary_hash_projection_size = (cascade_hasher.secondary_hash_projection_.rows()) * (cascade_hasher.secondary_hash_projection_.cols());
-//					float *primary_hash_projection_data_device,
-//						*secondary_hash_projection_data_device;
-//
-//					cudaMalloc((void **)&primary_hash_projection_data_device, sizeof(float) * primary_hash_projection_size);
-//					cudaMalloc((void **)&secondary_hash_projection_data_device, sizeof(float) * secondary_hash_projection_size);
-//
-//					// 将矩阵数据传递进 显存 中已经开辟好了的空间
-//					cudaMemcpy(primary_hash_projection_data_device, primary_hash_projection_data, sizeof(float) * primary_hash_projection_size, cudaMemcpyHostToDevice);
-//					cudaMemcpy(secondary_hash_projection_data_device, secondary_hash_projection_data, sizeof(float) * secondary_hash_projection_size, cudaMemcpyHostToDevice);
-//					// 同步函数
-//					cudaThreadSynchronize();
-//				}
-//				
-//
-//				// Index the input regions
-//				//std::vector<Eigen::Map<BaseMat>> vec_Mat_I;
-//#ifdef OPENMVG_USE_OPENMP
-//#pragma omp parallel for schedule(dynamic)
-//#endif
-//
-//				for (int i = 0; i < used_index.size(); ++i)
-//				{
-//					std::set<IndexT>::const_iterator iter = used_index.begin();
-//					std::advance(iter, i);
-//					const IndexT I = *iter;
-//					const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-//					const ScalarT * tabI =
-//						reinterpret_cast<const ScalarT*>(regionsI->DescriptorRawData());
-//					const size_t dimension = regionsI->DescriptorLength();
-//
-//					Eigen::Map<BaseMat> mat_I((ScalarT*)tabI, regionsI->RegionCount(), dimension);
-//					//descriptionsMat = descriptions.template cast<float>();
-//					mat_I = mat_I.template cast<float>();
-//					//vec_Mat_I.push_back(mat_I);
-//				}
-//				//处理好描述符数据传到GPU上
-//				{
-//					// Allocate space for hash codes.
-//					const typename MatrixT::Index nbDescriptions = descriptions.rows();
-//					//hashed_descriptions.hashed_desc.resize(nbDescriptions);
-//
-//
-//					//整合所有的描述符放在一个矩阵里传到device
-//					Eigen::MatrixXf descriptionsMat;
-//					descriptionsMat = descriptions.template cast<float>();
-//					for (int k = 0; k < descriptionsMat.rows(); k++) {
-//						descriptionsMat.row(k) -= zero_mean_descriptor;
-//					}
-//					int descriptionsMatSize = descriptionsMat.rows() * descriptionsMat.cols();
-//					const float *descriptionsMat_data_temp = descriptionsMat.data();
-//					float *descriptionsMat_data_temp_1 = (float*)malloc(descriptions.rows()*descriptions.cols() * sizeof(float));
-//					myRTOC.cToR(descriptionsMat_data_temp, descriptionsMat.rows(), descriptionsMat.cols(), descriptionsMat_data_temp_1);
-//					const float *descriptionsMat_data = const_cast<const float*> (descriptionsMat_data_temp_1);
-//					float *descriptionsMat_data_device;
-//					cudaMalloc((void **)&descriptionsMat_data_device, sizeof(float) * descriptions_size);
-//					// 将矩阵数据传递进 显存 中已经开辟好了的空间
-//					cudaMemcpy(descriptionsMat_data_device, descriptionsMat_data, sizeof(float) * descriptions_size, cudaMemcpyHostToDevice);
-//					// 同步函数
-//					cudaThreadSynchronize();
-//					//该写第二层数据调度策略了
-//
-//				}
-//
-//
-//				//顺便在device上为hashed_base_申请好空间
-//				float *hashed_base_device;
-//				cudaMalloc((void **)&hashed_base_device, sizeof(float) * max_descriptions_num_per_image);
-//				cascade_hasher.CreateHashedDescriptions(vec_Mat_I, zero_mean_descriptor, hashed_base_);
-//			}
-//		};
-//	}//namespace openMVG
-//}//namespace matching_image_collection
 
 extern "C" int testCUDACPP(int a, int b);
 
 //#include "third_party/eigen/eigen/src/Core/util/Macros.h"
-void computeMatches::ComputeMatches::test() {
+void computeMatches::test() {
 	int a = 1;
 	int b = 2;
 	int c = -1;
@@ -257,21 +67,24 @@ void computeMatches::ComputeMatches::test() {
 	printf("testCUDACPP result:%d", c);
 	printf("cpp test success\n");
 }
-void computeMatches::ComputeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &zero_mean_descriptor)
+void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_descriptor)
 {
 	int imgCount = group_count*block_count_per_group*image_count_per_block;
 	//用于保存每组数据计算得到的零和平均值，最后再平均为zero_mean_descriptors
 	Eigen::MatrixXf zero_descriptor;
-	zero_descriptor.resize(imgCount , descriptionDimension);
+	zero_descriptor.resize(descriptionDimension, group_count);
 	zero_descriptor.fill(0.0f);
 
 	//初始化cascade hasher
-	CascadeHasher zeroCascadeHasher;
+	CascadeHasherGPU zeroCascadeHasher;
 	zeroCascadeHasher.Init(descriptionDimension);
 
 	std::string sSfM_Data_Filename;
 	std::string sMatchesOutputDir;
 	char temp_i[2] = { ' ','\0' };
+
+	std::cout << "Compute zero_mean_descriptor begin: " << std::endl;
+	system::Timer timer;
 	for (int i = 0; i < group_count; i++) {
 		temp_i[0] = i + 48;
 		const std::string str_i = temp_i;
@@ -310,34 +123,156 @@ void computeMatches::ComputeMatches::computeZeroMeanDescriptors(Eigen::VectorXf 
 			std::cerr << std::endl << "Invalid regions." << std::endl;
 			return;
 		}
-		//compute begin
-		using BaseMat = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+		//存储每一组内的均值
 		Eigen::MatrixXf matForZeroMean;
 		for (int j = 0; j < image_count_per_group; j++) {
 			const IndexT I = j;
 			const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-			const float * tabI =
-				reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+			const unsigned char * tabI =
+				reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
+
 			const size_t dimension = regionsI->DescriptorLength();
-			if (i == 0)
+			if (j == 0)
 			{
 				//Each row of the matrix is the size of a descriptor
-				matForZeroMean.resize(image_count_per_group, dimension);
+				matForZeroMean.resize(dimension, image_count_per_group);
 				matForZeroMean.fill(0.0f);
 			}
 			if (regionsI->RegionCount() > 0)
 			{
-				Eigen::Map<BaseMat> mat_I((float*)tabI, regionsI->RegionCount(), dimension);
-				//GPU parallel here may be slower
-				//return descriptions.template cast<float>().colwise().mean();
-				matForZeroMean.row(i) = CascadeHasher::GetZeroMeanDescriptor(mat_I);
+				Eigen::Map<BaseMat> mat_I((unsigned char* )tabI, dimension, regionsI->RegionCount());
+				matForZeroMean.col(i) = zeroCascadeHasher.GetZeroMeanDescriptor(mat_I);
 			}
-			zero_descriptor.row(i) = CascadeHasher::GetZeroMeanDescriptor(matForZeroMean);
 		}
-		zero_mean_descriptor = CascadeHasher::GetZeroMeanDescriptor(zero_descriptor);
+		zero_descriptor.col(i) = zeroCascadeHasher.GetZeroMeanDescriptor(matForZeroMean);
 	}
+	_zero_mean_descriptor = zeroCascadeHasher.GetZeroMeanDescriptor(zero_descriptor);
+	std::cout << "Task (Compute zero_mean_descriptor) done in (s): " << timer.elapsed() << std::endl;
 }
-int computeMatches::ComputeMatches::computeHashes()
+//void computeMatches::computeCurrentGroupHashcode() {}
+//void computeMatches::computeCurrentBlockHashcode
+//(
+//	int secondIter,
+//	std::vector <int> mat_I_cols,
+//	float **hash_base_array_GPU,
+//	CascadeHasher myCascadeHasher,
+//	float *primary_hash_projection_data_device,
+//	float **mat_I_point_array_GPU,
+//	float **hash_base_array_CPU,
+//	const float **mat_I_point_array_CPU,
+//	std::map<openMVG::IndexT, HashedDescriptions> &hashed_base_,
+//	float **secondary_hash_projection_data_GPU,
+//	string sMatchesOutputDir_hash
+//)
+//{
+//	//for (int m = 0; m < image_count_per_block; ++m) {
+//	//	int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+//	//	cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
+//	//	myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+//	//		primary_hash_projection_data_device, mat_I_point_array_GPU[m],
+//	//		hash_base_array_GPU[m]);
+//	//	cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+//
+//	//	//free
+//	//	{
+//	//		cudaFree(hash_base_array_GPU[m]);
+//	//		mat_I_point_array_CPU[m] = NULL;
+//	//		hash_base_array_GPU[m] = NULL;
+//	//	}
+//
+//
+//	//	//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+//	//	{
+//	//		for (int i = 0; i < mat_I_cols[m]; ++i) {
+//	//			// Allocate space for each bucket id.
+//	//			hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+//	//			// Compute hash code.
+//	//			auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
+//	//			hash_code = stl::dynamic_bitset(descriptionDimension);
+//	//			for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
+//	//			{
+//	//				hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+//	//			}
+//
+//	//			// Determine the bucket index for each group.
+//	//			//Eigen::VectorXf secondary_projection;
+//	//			for (int j = 0; j < myCascadeHasher.nb_bucket_groups_; ++j)
+//	//			{
+//	//				uint16_t bucket_id = 0;
+//
+//	//				float *secondary_projection_CPU;
+//	//				float *secondary_projection_GPU;
+//	//				int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+//	//				cudaMalloc((void **)secondary_projection_GPU,
+//	//					sizeof(float) * secondary_projection_CPU_size);
+//	//				//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+//	//				myCascadeHasher.determine_buket_index_for_each_group(
+//	//					secondary_projection_GPU,
+//	//					secondary_hash_projection_data_GPU[j],
+//	//					mat_I_point_array_GPU[m],
+//	//					myCascadeHasher.nb_bits_per_bucket_,
+//	//					myCascadeHasher.nb_hash_code_,
+//	//					mat_I_cols[m]
+//	//				);
+//	//				cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+//	//					sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+//
+//	//				Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+//	//					(secondary_projection_CPU, secondary_projection_CPU_size);
+//
+//	//				for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
+//	//				{
+//	//					bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+//	//				}
+//	//				hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+//	//			}
+//	//		}
+//
+//	//		//free
+//	//		{
+//	//			cudaFree(mat_I_point_array_GPU[m]);
+//	//			mat_I_point_array_GPU[m] = NULL;
+//	//			hash_base_array_CPU[m] = NULL;
+//	//		}
+//
+//	//		// Build the Buckets
+//	//		{
+//	//			hashed_base_[m].buckets.resize(myCascadeHasher.nb_bucket_groups_);
+//	//			for (int i = 0; i < myCascadeHasher.nb_bucket_groups_; ++i)
+//	//			{
+//	//				hashed_base_[m].buckets[i].resize(myCascadeHasher.nb_buckets_per_group_);
+//
+//	//				// Add the descriptor ID to the proper bucket group and id.
+//	//				for (int j = 0; j < hashed_base_[m].hashed_desc.size(); ++j)
+//	//				{
+//	//					const uint16_t bucket_id = hashed_base_[m].hashed_desc[j].bucket_ids[i];
+//	//					hashed_base_[m].buckets[i][bucket_id].push_back(j);
+//	//				}
+//	//			}
+//	//		}
+//	//	}
+//	//	//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+//	//	{
+//	//		char file_io_temp_i[2] = { ' ','\0' };
+//	//		file_io_temp_i[0] = secondIter + 48;
+//	//		const std::string file_io_str_i = file_io_temp_i;
+//
+//	//		char file_name_temp[2] = { ' ','\0' };
+//	//		file_name_temp[0] = m + 48;
+//	//		const std::string file_name_temp_m = file_name_temp;
+//	//		const std::string file_name_temp2 = "block_" + file_name_temp_m;
+//	//		const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+//	//		if (!stlplus::file_exists(sHash)) {
+//	//			hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+//	//		}
+//	//	}
+//	//}
+//}
+int computeMatches::computeHashes
+(
+	Eigen::VectorXf &_zero_mean_descriptor
+)
+
 {
 	//fundamental matrix
 	std::string sGeometricModel = "f";
@@ -417,11 +352,11 @@ int computeMatches::ComputeMatches::computeHashes()
 	}
 	//分组读入图片数据之前就先把GPU上常用的空间先申请好//需要上传的一直用的数据也都上传
 	openMVG::matching::RTOC myRTOC;
-	CascadeHasher myCascadeHasher;
+	CascadeHasherGPU myCascadeHasher;
 	myCascadeHasher.Init(descriptionDimension);
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////这里先上传哈希计算所需要的数据 primary_hash_projection_ 
-	int primary_hash_projection_size = (myCascadeHasher.primary_hash_projection_.rows()) * (myCascadeHasher.primary_hash_projection_.cols());
+	size_t primary_hash_projection_size = (myCascadeHasher.primary_hash_projection_.rows()) * (myCascadeHasher.primary_hash_projection_.cols());
 	//cpu上存放primary的指针
 	const float *primary_hash_projection_data = myCascadeHasher.primary_hash_projection_.data();
 	float *primary_hash_projection_data_device;
@@ -435,7 +370,7 @@ int computeMatches::ComputeMatches::computeHashes()
 	float *secondary_hash_projection_data_GPU[6];
 	for (int i = 0; i < myCascadeHasher.nb_bucket_groups_; i++) {
 		secondary_hash_projection_data_CPU[i] = myCascadeHasher.secondary_hash_projection_[i].data();
-		int secondary_hash_projection_per_size = myCascadeHasher.secondary_hash_projection_[i].rows() *
+		size_t secondary_hash_projection_per_size = myCascadeHasher.secondary_hash_projection_[i].rows() *
 													myCascadeHasher.secondary_hash_projection_[i].cols();
 		cudaMalloc((void **)&secondary_hash_projection_data_GPU[i], sizeof(float) * secondary_hash_projection_per_size);
 		cudaMemcpy(secondary_hash_projection_data_GPU[i], secondary_hash_projection_data_CPU[i], 
@@ -595,7 +530,7 @@ int computeMatches::ComputeMatches::computeHashes()
 							{
 								//default set runs here
 								std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
-								collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+								//collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
 							}
 							else
 								if (regions_type->IsBinary())
@@ -636,8 +571,8 @@ int computeMatches::ComputeMatches::computeHashes()
 											}
 						if (!collectionMatcher)
 						{
-							std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
-							return EXIT_FAILURE;
+							/*std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+							return EXIT_FAILURE;*/
 						}
 						// Perform the cascade hashing
 						system::Timer timer;
@@ -678,7 +613,7 @@ int computeMatches::ComputeMatches::computeHashes()
 								//device存放预读块数据哈希计算结果的指针数组
 								//float *hash_base_pre_array_GPU[image_count_per_block];
 
-								//initialize all pointers
+								//initialize the pointer array
 								for (int i = 0; i < image_count_per_block; i++) {
 									mat_I_point_array_CPU[i] = NULL;
 									hash_base_array_CPU[i] = NULL;
@@ -691,11 +626,12 @@ int computeMatches::ComputeMatches::computeHashes()
 									//hash_base_pre_array_GPU[i] = NULL;
 								}
 
-								//store all hash result for this block
-								std::map<IndexT, HashedDescriptions> hashed_base_;
+								
 								
 								{
 									if (secondIter == 0) {
+										//store all hash result for this block
+										std::map<IndexT, HashedDescriptions> hashed_base_;
 										//处理当前块内每一张图片的数据后上传到GPU上
 										for (int m = 0; m < image_count_per_block; ++m)
 										{
@@ -703,28 +639,29 @@ int computeMatches::ComputeMatches::computeHashes()
 											std::advance(iter, m+secondIter*image_count_per_block);
 											const IndexT I = *iter;
 											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-											const float * tabI =
-												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const unsigned char * tabI =
+												reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 											const size_t dimension = regionsI->DescriptorLength();
-
-											Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+											Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.cols(); k++) {
-												descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+												descriptionsMat.col(k) -= _zero_mean_descriptor;
 											}
+											
 											float *descriptionsMat_data_temp = descriptionsMat.data();
 											mat_I_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
 											//upload mat_I_array_CPU[m]
 											{
-												int descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
+												size_t descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
 												cudaMalloc((void **)&mat_I_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 												cudaMemcpy(mat_I_point_array_GPU[m], mat_I_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 											}
-											mat_I_cols.push_back(mat_I.cols());
+											mat_I_cols[m] = mat_I.cols();
 											
 										}
+
 										//处理预读块内每一张图片的数据后上传到GPU上
 										for (int m = 0; m < image_count_per_block; ++m)
 										{
@@ -732,57 +669,98 @@ int computeMatches::ComputeMatches::computeHashes()
 											std::advance(iter, m + (secondIter+1)*image_count_per_block);
 											const IndexT I = *iter;
 											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-											const float * tabI =
-												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const unsigned char * tabI =
+												reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 											const size_t dimension = regionsI->DescriptorLength();
-
-											Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+											Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.cols(); k++) {
-												descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+												descriptionsMat.col(k) -= _zero_mean_descriptor;
 											}
 											float *descriptionsMat_data_temp = descriptionsMat.data();
 											mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
 											//upload mat_I_pre_array_CPU[m]
 											{
-												int descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
+												size_t descriptionsMatSize = descriptionsMat.rows() *descriptionsMat.cols();
 												cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 												cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 											}
-											mat_I_pre_cols.push_back(mat_I.cols());
+											mat_I_pre_cols[m] = mat_I.cols();
 										}
 										
-										//为当前块数据做hash，并将其存储到本地文件当中
+										//为当前块数据做hash
 										{
 											for (int m = 0; m < image_count_per_block; ++m) {
-												int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+												size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 												cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-												myCascadeHasher.hash_gen( mat_I_cols[m], descriptionDimension,
-													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-													hash_base_array_GPU[m] );
+												hash_base_array_GPU[m] = myCascadeHasher.hash_gen( mat_I_cols[m], descriptionDimension,
+													primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+												hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 												cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
 												
+
 												//free
 												{
-													cudaFree(hash_base_array_GPU[m]);
 													mat_I_point_array_CPU[m] = NULL;
+
+
+													cudaFree(hash_base_array_GPU[m]);
 													hash_base_array_GPU[m] = NULL;
 												}
+
+												//Determine the bucket index for each IMG in a block.
+												float *secondary_projection_CPU = NULL;
+												float *secondary_projection_GPU = NULL;
+												int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+												secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+												cudaMalloc((void **)secondary_projection_GPU,
+													sizeof(float) * secondary_projection_CPU_size);
+												//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+												secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+													//左式
+													secondary_hash_projection_data_GPU[firstIter],
+													//右式
+													mat_I_point_array_GPU[m],
+													//左式A行数
+													myCascadeHasher.nb_bits_per_bucket_,
+													//左式A列数
+													myCascadeHasher.nb_hash_code_,
+													//右式B列数
+													mat_I_cols[m]
+												);
+												//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+												//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+												cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+													sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+												cudaFree(secondary_projection_GPU);
+												//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
 												
-												
+												//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+													//(secondary_projection_CPU, secondary_projection_CPU_size);
+												//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+													//(secondary_projection_CPU, secondary_projection_CPU_size);
+
 												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+												
 												{
+													int imgCountBeforeBlockM = 0;
+													for (int sss = 0; sss < m; sss++) {
+														imgCountBeforeBlockM += mat_I_cols[m];
+													}
 													for (int i = 0; i < mat_I_cols[m]; ++i) {
 														// Allocate space for each bucket id.
-														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														IndexT m_index = m;
+														hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+														hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 														// Compute hash code.
 														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 														hash_code = stl::dynamic_bitset(descriptionDimension);
 														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 														{
-															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 														}
 
 														// Determine the bucket index for each group.
@@ -790,32 +768,13 @@ int computeMatches::ComputeMatches::computeHashes()
 														for (int j = 0; j < myCascadeHasher.nb_bucket_groups_; ++j)
 														{
 															uint16_t bucket_id = 0;
-
-															float *secondary_projection_CPU;
-															float *secondary_projection_GPU;
-															int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-															cudaMalloc((void **)secondary_projection_GPU,
-																		sizeof(float) * secondary_projection_CPU_size);
-															//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-															myCascadeHasher.determine_buket_index_for_each_group(
-																secondary_projection_GPU,
-																secondary_hash_projection_data_GPU[j],
-																mat_I_point_array_GPU[m],
-																myCascadeHasher.nb_bits_per_bucket_,
-																myCascadeHasher.nb_hash_code_,
-																mat_I_cols[m]
-															);
-															cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-																		sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
-
-															Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-																									(secondary_projection_CPU, secondary_projection_CPU_size);
-															
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
-																bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
-															hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 														}
 													}
 
@@ -823,6 +782,7 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														cudaFree(mat_I_point_array_GPU[m]);
 														mat_I_point_array_GPU[m] = NULL;
+														free(hash_base_array_CPU[m]);
 														hash_base_array_CPU[m] = NULL;
 													}
 
@@ -842,21 +802,26 @@ int computeMatches::ComputeMatches::computeHashes()
 														}
 													}
 												}
-												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-												{
-													char file_io_temp_i[2] = { ' ','\0' };
-													file_io_temp_i[0] = secondIter + 48;
-													const std::string file_io_str_i = file_io_temp_i;
+												free(secondary_projection_CPU);
+												secondary_projection_CPU = NULL;
+											}
+										}
+										//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+											char file_io_temp_i[2] = { ' ','\0' };
+											file_io_temp_i[0] = secondIter + 48;
+											const std::string file_io_str_i = file_io_temp_i;
 
-													char file_name_temp[2] = { ' ','\0' };
-													file_name_temp[0] = m + 48;
-													const std::string file_name_temp_m = file_name_temp;
-													const std::string file_name_temp2 = "block_" + file_name_temp_m;
-													const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-													if (!stlplus::file_exists(sHash)) {
-														hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-													}
-												}
+											char file_name_temp[2] = { ' ','\0' };
+											file_name_temp[0] = secondIter + 48;
+											const std::string file_name_temp_m = file_name_temp;
+											const std::string file_name_temp2 = "block_" + file_name_temp_m;
+											const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+											if (!stlplus::file_exists(sHash)) {
+												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+											}
+											else {
+												std::cerr << "error when creating hash files!" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -878,16 +843,15 @@ int computeMatches::ComputeMatches::computeHashes()
 											std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 											const IndexT I = *iter;
 											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-											const float * tabI =
-												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const unsigned char * tabI =
+												reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 											const size_t dimension = regionsI->DescriptorLength();
-
-											Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+											Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.cols(); k++) {
-												descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+												descriptionsMat.col(k) -= _zero_mean_descriptor;
 											}
 											float *descriptionsMat_data_temp = descriptionsMat.data();
 											mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -901,17 +865,20 @@ int computeMatches::ComputeMatches::computeHashes()
 										}
 									}
 									else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+										//store all hash result for this block
+										std::map<IndexT, HashedDescriptions> hashed_base_;
 										// 同步函数
 										cudaThreadSynchronize();
-										//为当前块数据做hash，并将其存储到本地文件当中
+										//为当前块数据做hash
 										{
 											for (int m = 0; m < image_count_per_block; ++m) {
-												int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+												size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 												cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-												myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-													hash_base_array_GPU[m]);
+												hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+													primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+												hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 												cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 												//free
 												{
@@ -920,18 +887,56 @@ int computeMatches::ComputeMatches::computeHashes()
 													hash_base_array_GPU[m] = NULL;
 												}
 
+												//Determine the bucket index for each IMG in a block.
+												float *secondary_projection_CPU = NULL;
+												float *secondary_projection_GPU = NULL;
+												int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+												secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+												cudaMalloc((void **)secondary_projection_GPU,
+													sizeof(float) * secondary_projection_CPU_size);
+												//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+												secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+													//左式
+													secondary_hash_projection_data_GPU[firstIter],
+													//右式
+													mat_I_point_array_GPU[m],
+													//左式A行数
+													myCascadeHasher.nb_bits_per_bucket_,
+													//左式A列数
+													myCascadeHasher.nb_hash_code_,
+													//右式B列数
+													mat_I_cols[m]
+												);
+												//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+												//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+												cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+													sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+												//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+												//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
+												//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 												{
+													int imgCountBeforeBlockM = 0;
+													for (int sss = 0; sss < m; sss++) {
+														imgCountBeforeBlockM += mat_I_cols[m];
+													}
 													for (int i = 0; i < mat_I_cols[m]; ++i) {
 														// Allocate space for each bucket id.
-														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														IndexT m_index = m;
+														hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+														hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 														// Compute hash code.
 														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 														hash_code = stl::dynamic_bitset(descriptionDimension);
 														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 														{
-															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 														}
 
 														// Determine the bucket index for each group.
@@ -940,31 +945,15 @@ int computeMatches::ComputeMatches::computeHashes()
 														{
 															uint16_t bucket_id = 0;
 
-															float *secondary_projection_CPU;
-															float *secondary_projection_GPU;
-															int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-															cudaMalloc((void **)secondary_projection_GPU,
-																sizeof(float) * secondary_projection_CPU_size);
-															//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-															myCascadeHasher.determine_buket_index_for_each_group(
-																secondary_projection_GPU,
-																secondary_hash_projection_data_GPU[j],
-																mat_I_point_array_GPU[m],
-																myCascadeHasher.nb_bits_per_bucket_,
-																myCascadeHasher.nb_hash_code_,
-																mat_I_cols[m]
-															);
-															cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-																sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-															Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-																(secondary_projection_CPU, secondary_projection_CPU_size);
 
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
-																bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
-															hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 														}
 													}
 
@@ -972,6 +961,7 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														cudaFree(mat_I_point_array_GPU[m]);
 														mat_I_point_array_GPU[m] = NULL;
+														free(hash_base_array_CPU[m]);
 														hash_base_array_CPU[m] = NULL;
 													}
 
@@ -991,21 +981,27 @@ int computeMatches::ComputeMatches::computeHashes()
 														}
 													}
 												}
-												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-												{
-													char file_io_temp_i[2] = { ' ','\0' };
-													file_io_temp_i[0] = secondIter + 48;
-													const std::string file_io_str_i = file_io_temp_i;
+												free(secondary_projection_CPU);
+												secondary_projection_CPU = NULL;
+											}
+										}
 
-													char file_name_temp[2] = { ' ','\0' };
-													file_name_temp[0] = m + 48;
-													const std::string file_name_temp_m = file_name_temp;
-													const std::string file_name_temp2 = "block_" + file_name_temp_m;
-													const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-													if (!stlplus::file_exists(sHash)) {
-														hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-													}
-												}
+										//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+											char file_io_temp_i[2] = { ' ','\0' };
+											file_io_temp_i[0] = secondIter + 48;
+											const std::string file_io_str_i = file_io_temp_i;
+
+											char file_name_temp[2] = { ' ','\0' };
+											file_name_temp[0] = secondIter + 48;
+											const std::string file_name_temp_m = file_name_temp;
+											const std::string file_name_temp2 = "block_" + file_name_temp_m;
+											const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+											if (!stlplus::file_exists(sHash)) {
+												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+											}
+											else {
+												std::cerr << "error when creating hash files!" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1025,16 +1021,16 @@ int computeMatches::ComputeMatches::computeHashes()
 											std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 											const IndexT I = *iter;
 											const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-											const float * tabI =
-												reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+											const unsigned char * tabI =
+												reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 											const size_t dimension = regionsI->DescriptorLength();
 
-											Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+											Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 											//descriptions minus zero_mean_descriptors before upload 
 											Eigen::MatrixXf descriptionsMat;
 											descriptionsMat = mat_I.template cast<float>();
 											for (int k = 0; k < descriptionsMat.cols(); k++) {
-												descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+												descriptionsMat.col(k) -= _zero_mean_descriptor;
 											}
 											float *descriptionsMat_data_temp = descriptionsMat.data();
 											mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -1048,17 +1044,20 @@ int computeMatches::ComputeMatches::computeHashes()
 										}
 									}
 									else if (secondIter == block_count_per_group - 2) {
+										//store all hash result for this block
+										std::map<IndexT, HashedDescriptions> hashed_base_;
 										// 同步函数
 										cudaThreadSynchronize();
-										//为当前块数据做hash，并将其存储到本地文件当中
+										//为当前块数据做hash
 										{
 											for (int m = 0; m < image_count_per_block; ++m) {
-												int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+												size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 												cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-												myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-													hash_base_array_GPU[m]);
+												hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+													primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+												hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 												cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 												//free
 												{
@@ -1067,18 +1066,56 @@ int computeMatches::ComputeMatches::computeHashes()
 													hash_base_array_GPU[m] = NULL;
 												}
 
+												//Determine the bucket index for each IMG in a block.
+												float *secondary_projection_CPU = NULL;
+												float *secondary_projection_GPU = NULL;
+												int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+												secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+												cudaMalloc((void **)secondary_projection_GPU,
+													sizeof(float) * secondary_projection_CPU_size);
+												//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+												secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+													//左式
+													secondary_hash_projection_data_GPU[firstIter],
+													//右式
+													mat_I_point_array_GPU[m],
+													//左式A行数
+													myCascadeHasher.nb_bits_per_bucket_,
+													//左式A列数
+													myCascadeHasher.nb_hash_code_,
+													//右式B列数
+													mat_I_cols[m]
+												);
+												//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+												//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+												cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+													sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+												//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+												//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
+												//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 												{
+													int imgCountBeforeBlockM = 0;
+													for (int sss = 0; sss < m; sss++) {
+														imgCountBeforeBlockM += mat_I_cols[m];
+													}
 													for (int i = 0; i < mat_I_cols[m]; ++i) {
 														// Allocate space for each bucket id.
-														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														IndexT m_index = m;
+														hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+														hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 														// Compute hash code.
 														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 														hash_code = stl::dynamic_bitset(descriptionDimension);
 														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 														{
-															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 														}
 
 														// Determine the bucket index for each group.
@@ -1087,31 +1124,15 @@ int computeMatches::ComputeMatches::computeHashes()
 														{
 															uint16_t bucket_id = 0;
 
-															float *secondary_projection_CPU;
-															float *secondary_projection_GPU;
-															int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-															cudaMalloc((void **)secondary_projection_GPU,
-																sizeof(float) * secondary_projection_CPU_size);
-															//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-															myCascadeHasher.determine_buket_index_for_each_group(
-																secondary_projection_GPU,
-																secondary_hash_projection_data_GPU[j],
-																mat_I_point_array_GPU[m],
-																myCascadeHasher.nb_bits_per_bucket_,
-																myCascadeHasher.nb_hash_code_,
-																mat_I_cols[m]
-															);
-															cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-																sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-															Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-																(secondary_projection_CPU, secondary_projection_CPU_size);
 
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
-																bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
-															hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 														}
 													}
 
@@ -1119,6 +1140,7 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														cudaFree(mat_I_point_array_GPU[m]);
 														mat_I_point_array_GPU[m] = NULL;
+														free(hash_base_array_CPU[m]);
 														hash_base_array_CPU[m] = NULL;
 													}
 
@@ -1138,21 +1160,26 @@ int computeMatches::ComputeMatches::computeHashes()
 														}
 													}
 												}
-												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-												{
-													char file_io_temp_i[2] = { ' ','\0' };
-													file_io_temp_i[0] = secondIter + 48;
-													const std::string file_io_str_i = file_io_temp_i;
+												free(secondary_projection_CPU);
+												secondary_projection_CPU = NULL;
+											}
+										}
+										//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+											char file_io_temp_i[2] = { ' ','\0' };
+											file_io_temp_i[0] = secondIter + 48;
+											const std::string file_io_str_i = file_io_temp_i;
 
-													char file_name_temp[2] = { ' ','\0' };
-													file_name_temp[0] = m + 48;
-													const std::string file_name_temp_m = file_name_temp;
-													const std::string file_name_temp2 = "block_" + file_name_temp_m;
-													const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-													if (!stlplus::file_exists(sHash)) {
-														hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-													}
-												}
+											char file_name_temp[2] = { ' ','\0' };
+											file_name_temp[0] = secondIter + 48;
+											const std::string file_name_temp_m = file_name_temp;
+											const std::string file_name_temp2 = "block_" + file_name_temp_m;
+											const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+											if (!stlplus::file_exists(sHash)) {
+												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+											}
+											else {
+												std::cerr << "error when creating hash files!" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1167,15 +1194,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										//处理最后一块数据
 										// 同步函数
 										cudaThreadSynchronize();
-										//为最后一块(当前的预读块)数据做hash，并将其存储到本地文件当中
+										//为最后一块(当前的预读块)数据做hash
 										{
 											for (int m = 0; m < image_count_per_block; ++m) {
-												int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+												size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 												cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-												myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-													primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-													hash_base_array_GPU[m]);
+												hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+													primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+												hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 												cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 												//free
 												{
@@ -1184,18 +1212,56 @@ int computeMatches::ComputeMatches::computeHashes()
 													hash_base_array_GPU[m] = NULL;
 												}
 
+												//Determine the bucket index for each IMG in a block.
+												float *secondary_projection_CPU = NULL;
+												float *secondary_projection_GPU = NULL;
+												int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+												secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+												cudaMalloc((void **)secondary_projection_GPU,
+													sizeof(float) * secondary_projection_CPU_size);
+												//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+												secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+													//左式
+													secondary_hash_projection_data_GPU[firstIter],
+													//右式
+													mat_I_point_array_GPU[m],
+													//左式A行数
+													myCascadeHasher.nb_bits_per_bucket_,
+													//左式A列数
+													myCascadeHasher.nb_hash_code_,
+													//右式B列数
+													mat_I_cols[m]
+												);
+												//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+												//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+												cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+													sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+												//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+												//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
+												//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+												//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 												//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 												{
+													int imgCountBeforeBlockM = 0;
+													for (int sss = 0; sss < m; sss++) {
+														imgCountBeforeBlockM += mat_I_cols[m];
+													}
 													for (int i = 0; i < mat_I_cols[m]; ++i) {
 														// Allocate space for each bucket id.
-														hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+														IndexT m_index = m;
+														hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+														hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 														// Compute hash code.
 														auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 														hash_code = stl::dynamic_bitset(descriptionDimension);
 														for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 														{
-															hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+															hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 														}
 
 														// Determine the bucket index for each group.
@@ -1204,31 +1270,15 @@ int computeMatches::ComputeMatches::computeHashes()
 														{
 															uint16_t bucket_id = 0;
 
-															float *secondary_projection_CPU;
-															float *secondary_projection_GPU;
-															int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-															cudaMalloc((void **)secondary_projection_GPU,
-																sizeof(float) * secondary_projection_CPU_size);
-															//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-															myCascadeHasher.determine_buket_index_for_each_group(
-																secondary_projection_GPU,
-																secondary_hash_projection_data_GPU[j],
-																mat_I_point_array_GPU[m],
-																myCascadeHasher.nb_bits_per_bucket_,
-																myCascadeHasher.nb_hash_code_,
-																mat_I_cols[m]
-															);
-															cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-																sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-															Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-																(secondary_projection_CPU, secondary_projection_CPU_size);
 
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
-																bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
-															hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 														}
 													}
 
@@ -1236,6 +1286,7 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														cudaFree(mat_I_point_array_GPU[m]);
 														mat_I_point_array_GPU[m] = NULL;
+														free(hash_base_array_CPU[m]);
 														hash_base_array_CPU[m] = NULL;
 													}
 
@@ -1255,21 +1306,26 @@ int computeMatches::ComputeMatches::computeHashes()
 														}
 													}
 												}
-												//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-												{
-													char file_io_temp_i[2] = { ' ','\0' };
-													file_io_temp_i[0] = secondIter + 48;
-													const std::string file_io_str_i = file_io_temp_i;
+												free(secondary_projection_CPU);
+												secondary_projection_CPU = NULL;
+											}
+										}
+										//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+											char file_io_temp_i[2] = { ' ','\0' };
+											file_io_temp_i[0] = secondIter + 48;
+											const std::string file_io_str_i = file_io_temp_i;
 
-													char file_name_temp[2] = { ' ','\0' };
-													file_name_temp[0] = m + 48;
-													const std::string file_name_temp_m = file_name_temp;
-													const std::string file_name_temp2 = "block_" + file_name_temp_m;
-													const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-													if (!stlplus::file_exists(sHash)) {
-														hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-													}
-												}
+											char file_name_temp[2] = { ' ','\0' };
+											file_name_temp[0] = secondIter + 48;
+											const std::string file_name_temp_m = file_name_temp;
+											const std::string file_name_temp2 = "block_" + file_name_temp_m;
+											const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+											if (!stlplus::file_exists(sHash)) {
+												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+											}
+											else {
+												std::cerr << "error when creating hash files!" << std::endl;
 											}
 										}
 									}
@@ -1409,7 +1465,7 @@ int computeMatches::ComputeMatches::computeHashes()
 						{
 							//default set runs here
 							std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
-							collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+							//collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
 						}
 						else
 							if (regions_type->IsBinary())
@@ -1505,11 +1561,12 @@ int computeMatches::ComputeMatches::computeHashes()
 								//hash_base_pre_array_GPU[i] = NULL;
 							}
 
-							//store all hash result for this block
-							std::map<IndexT, HashedDescriptions> hashed_base_;
+							
 
 							{
 								if (secondIter == 0) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									//处理当前块内每一张图片的数据后上传到GPU上
 									for (int m = 0; m < image_count_per_block; ++m)
 									{
@@ -1517,16 +1574,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + secondIter*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -1546,16 +1603,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 1)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -1568,15 +1625,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										mat_I_pre_cols.push_back(mat_I.cols());
 									}
 
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -1585,18 +1643,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -1605,31 +1701,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -1637,6 +1717,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -1656,23 +1737,28 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
-
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
 										}
 									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
+
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
+										}
+										}
 									//变换当前块与预读块的相关数据
 									for (int m = 0; m < image_count_per_block; ++m) {
 										mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
@@ -1692,16 +1778,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -1715,17 +1801,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -1734,18 +1823,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -1754,31 +1881,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -1786,6 +1897,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -1805,21 +1917,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -1839,16 +1956,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -1862,17 +1979,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -1881,18 +2001,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -1901,31 +2059,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -1933,6 +2075,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -1952,21 +2095,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -1981,15 +2129,16 @@ int computeMatches::ComputeMatches::computeHashes()
 									//处理最后一块数据
 									// 同步函数
 									cudaThreadSynchronize();
-									//为最后一块(当前的预读块)数据做hash，并将其存储到本地文件当中
+									//为最后一块(当前的预读块)数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -1998,18 +2147,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -2018,31 +2205,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -2050,6 +2221,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -2069,21 +2241,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 								}
@@ -2219,7 +2396,7 @@ int computeMatches::ComputeMatches::computeHashes()
 						{
 							//default set runs here
 							std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
-							collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+							//collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
 						}
 						else
 							if (regions_type->IsBinary())
@@ -2315,11 +2492,12 @@ int computeMatches::ComputeMatches::computeHashes()
 								//hash_base_pre_array_GPU[i] = NULL;
 							}
 
-							//store all hash result for this block
-							std::map<IndexT, HashedDescriptions> hashed_base_;
+							
 
 							{
 								if (secondIter == 0) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									//处理当前块内每一张图片的数据后上传到GPU上
 									for (int m = 0; m < image_count_per_block; ++m)
 									{
@@ -2327,16 +2505,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + secondIter*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -2356,16 +2534,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 1)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -2378,15 +2556,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										mat_I_pre_cols.push_back(mat_I.cols());
 									}
 
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -2395,18 +2574,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -2415,31 +2632,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -2447,6 +2648,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -2466,21 +2668,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2502,16 +2709,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -2525,17 +2732,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -2544,18 +2754,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -2564,31 +2812,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -2596,6 +2828,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -2615,21 +2848,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2649,16 +2887,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -2672,17 +2910,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -2691,18 +2932,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -2711,31 +2990,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -2743,6 +3006,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -2762,21 +3026,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2791,15 +3060,16 @@ int computeMatches::ComputeMatches::computeHashes()
 									//处理最后一块数据
 									// 同步函数
 									cudaThreadSynchronize();
-									//为最后一块(当前的预读块)数据做hash，并将其存储到本地文件当中
+									//为最后一块(当前的预读块)数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -2808,18 +3078,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -2828,31 +3136,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -2860,6 +3152,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -2879,23 +3172,28 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
-
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
 										}
 									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+										{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
+
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
+										}
+										}
 								}
 								else {
 									cout << "error in the second data exchange schedule! \n" << endl;
@@ -3014,7 +3312,7 @@ int computeMatches::ComputeMatches::computeHashes()
 						{
 							//default set runs here
 							std::cout << "Using FAST_CASCADE_HASHING_L2 matcher" << std::endl;
-							collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
+							//collectionMatcher.reset(new Cascade_Hashing_Matcher_Regions_GPU(fDistRatio));
 						}
 						else
 							if (regions_type->IsBinary())
@@ -3110,11 +3408,12 @@ int computeMatches::ComputeMatches::computeHashes()
 								//hash_base_pre_array_GPU[i] = NULL;
 							}
 
-							//store all hash result for this block
-							std::map<IndexT, HashedDescriptions> hashed_base_;
+							
 
 							{
 								if (secondIter == 0) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									//处理当前块内每一张图片的数据后上传到GPU上
 									for (int m = 0; m < image_count_per_block; ++m)
 									{
@@ -3122,16 +3421,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + secondIter*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -3151,16 +3450,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 1)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -3173,15 +3472,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										mat_I_pre_cols.push_back(mat_I.cols());
 									}
 
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -3190,18 +3490,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -3210,31 +3548,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -3242,6 +3564,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -3261,21 +3584,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3297,16 +3625,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -3320,17 +3648,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -3339,18 +3670,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -3359,31 +3728,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -3391,6 +3744,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -3410,21 +3764,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3444,16 +3803,16 @@ int computeMatches::ComputeMatches::computeHashes()
 										std::advance(iter, m + (secondIter + 2)*image_count_per_block);
 										const IndexT I = *iter;
 										const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
-										const float * tabI =
-											reinterpret_cast<const float*>(regionsI->DescriptorRawData());
+										const unsigned char * tabI =
+											reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 										const size_t dimension = regionsI->DescriptorLength();
 
-										Eigen::Map<BaseMat> mat_I((float*)tabI, dimension, regionsI->RegionCount());
+										Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
 										//descriptions minus zero_mean_descriptors before upload 
 										Eigen::MatrixXf descriptionsMat;
 										descriptionsMat = mat_I.template cast<float>();
 										for (int k = 0; k < descriptionsMat.cols(); k++) {
-											descriptionsMat.col(k) -= computeMatches::zero_mean_descriptor;
+											descriptionsMat.col(k) -= _zero_mean_descriptor;
 										}
 										float *descriptionsMat_data_temp = descriptionsMat.data();
 										mat_I_pre_point_array_CPU[m] = reinterpret_cast<const float*>(descriptionsMat_data_temp);
@@ -3467,17 +3826,20 @@ int computeMatches::ComputeMatches::computeHashes()
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
+									//store all hash result for this block
+									std::map<IndexT, HashedDescriptions> hashed_base_;
 									// 同步函数
 									cudaThreadSynchronize();
-									//为当前块数据做hash，并将其存储到本地文件当中
+									//为当前块数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -3486,18 +3848,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -3506,31 +3906,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -3538,6 +3922,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -3557,21 +3942,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3586,15 +3976,16 @@ int computeMatches::ComputeMatches::computeHashes()
 									//处理最后一块数据
 									// 同步函数
 									cudaThreadSynchronize();
-									//为最后一块(当前的预读块)数据做hash，并将其存储到本地文件当中
+									//为最后一块(当前的预读块)数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
-											int hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
+											size_t hash_base_array_GPU_size = mat_I_cols[m] * descriptionDimension;
 											cudaMalloc((void **)&hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size);
-											myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
-												primary_hash_projection_data_device, mat_I_point_array_GPU[m],
-												hash_base_array_GPU[m]);
+											hash_base_array_GPU[m] = myCascadeHasher.hash_gen(mat_I_cols[m], descriptionDimension,
+												primary_hash_projection_data_device, mat_I_point_array_GPU[m]);
+											hash_base_array_CPU[m] = (float *)malloc(hash_base_array_GPU_size * (sizeof(float)));
 											cudaMemcpy(hash_base_array_CPU[m], hash_base_array_GPU[m], sizeof(float)*hash_base_array_GPU_size, cudaMemcpyDeviceToHost);
+
 
 											//free
 											{
@@ -3603,18 +3994,56 @@ int computeMatches::ComputeMatches::computeHashes()
 												hash_base_array_GPU[m] = NULL;
 											}
 
+											//Determine the bucket index for each IMG in a block.
+											float *secondary_projection_CPU = NULL;
+											float *secondary_projection_GPU = NULL;
+											int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
+											secondary_projection_CPU = (float *)malloc(sizeof(float) * secondary_projection_CPU_size);
+											cudaMalloc((void **)secondary_projection_GPU,
+												sizeof(float) * secondary_projection_CPU_size);
+											//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
+											secondary_projection_GPU = myCascadeHasher.determine_buket_index_for_each_group(
+												//左式
+												secondary_hash_projection_data_GPU[firstIter],
+												//右式
+												mat_I_point_array_GPU[m],
+												//左式A行数
+												myCascadeHasher.nb_bits_per_bucket_,
+												//左式A列数
+												myCascadeHasher.nb_hash_code_,
+												//右式B列数
+												mat_I_cols[m]
+											);
+											//得到的结果是secondary_projectiob * 一张图像上描述符数据得到的结果，用于决定哈希桶的数值
+											//矩阵应该是一个行列数分别为myCascadeHasher.nb_bits_per_bucket_ 、 mat_I_cols[m]的float矩阵
+											cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
+												sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
+											//Eigen::MatrixXf secondary_projection_mat = myCascadeHasher.secondary_hash_projection_[firstIter] * tempMat;
+
+
+											//Eigen::MatrixXf secondary_projection = Eigen::Map<Eigen::Matrix<float, myCascadeHasher.nb_bits_per_bucket_ , mat_I_cols[m]>>(secondary_projection_CPU);
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
+											//Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
+											//(secondary_projection_CPU, secondary_projection_CPU_size);
 
 											//计算出真正的哈希结果存放到 std::map<IndexT, HashedDescriptions> hashed_base_ 里面
+
 											{
+												int imgCountBeforeBlockM = 0;
+												for (int sss = 0; sss < m; sss++) {
+													imgCountBeforeBlockM += mat_I_cols[m];
+												}
 												for (int i = 0; i < mat_I_cols[m]; ++i) {
 													// Allocate space for each bucket id.
-													hashed_base_[m].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
+													IndexT m_index = m;
+													hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
+													hashed_base_[m_index].hashed_desc[i].bucket_ids.resize(myCascadeHasher.nb_bucket_groups_);
 													// Compute hash code.
 													auto& hash_code = hashed_base_[m].hashed_desc[i].hash_code;
 													hash_code = stl::dynamic_bitset(descriptionDimension);
 													for (int j = 0; j < myCascadeHasher.nb_hash_code_; ++j)
 													{
-														hash_code[j] = hash_base_array_CPU[(i*(myCascadeHasher.nb_hash_code_) + j)][m] > 0;
+														hash_code[j] = hash_base_array_CPU[m][(i*(myCascadeHasher.nb_hash_code_) + j)] > 0;
 													}
 
 													// Determine the bucket index for each group.
@@ -3623,31 +4052,15 @@ int computeMatches::ComputeMatches::computeHashes()
 													{
 														uint16_t bucket_id = 0;
 
-														float *secondary_projection_CPU;
-														float *secondary_projection_GPU;
-														int secondary_projection_CPU_size = myCascadeHasher.nb_bits_per_bucket_ * mat_I_cols[m];
-														cudaMalloc((void **)secondary_projection_GPU,
-															sizeof(float) * secondary_projection_CPU_size);
-														//secondary_projection = myCascadeHasher.secondary_hash_projection_[j] * mat_I_point_array_CPU[m];
-														myCascadeHasher.determine_buket_index_for_each_group(
-															secondary_projection_GPU,
-															secondary_hash_projection_data_GPU[j],
-															mat_I_point_array_GPU[m],
-															myCascadeHasher.nb_bits_per_bucket_,
-															myCascadeHasher.nb_hash_code_,
-															mat_I_cols[m]
-														);
-														cudaMemcpy(secondary_projection_CPU, secondary_projection_GPU,
-															sizeof(float)*secondary_projection_CPU_size, cudaMemcpyDeviceToHost);
 
-														Eigen::VectorXf secondary_projection = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>
-															(secondary_projection_CPU, secondary_projection_CPU_size);
 
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
-															bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
-														hashed_base_[m].hashed_desc[i].bucket_ids[j] = bucket_id;
+														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
 													}
 												}
 
@@ -3655,6 +4068,7 @@ int computeMatches::ComputeMatches::computeHashes()
 												{
 													cudaFree(mat_I_point_array_GPU[m]);
 													mat_I_point_array_GPU[m] = NULL;
+													free(hash_base_array_CPU[m]);
 													hash_base_array_CPU[m] = NULL;
 												}
 
@@ -3674,21 +4088,26 @@ int computeMatches::ComputeMatches::computeHashes()
 													}
 												}
 											}
-											//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-											{
-												char file_io_temp_i[2] = { ' ','\0' };
-												file_io_temp_i[0] = secondIter + 48;
-												const std::string file_io_str_i = file_io_temp_i;
+											free(secondary_projection_CPU);
+											secondary_projection_CPU = NULL;
+										}
+									}
+									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
+									{
+										char file_io_temp_i[2] = { ' ','\0' };
+										file_io_temp_i[0] = secondIter + 48;
+										const std::string file_io_str_i = file_io_temp_i;
 
-												char file_name_temp[2] = { ' ','\0' };
-												file_name_temp[0] = m + 48;
-												const std::string file_name_temp_m = file_name_temp;
-												const std::string file_name_temp2 = "block_" + file_name_temp_m;
-												const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
-												if (!stlplus::file_exists(sHash)) {
-													hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
-												}
-											}
+										char file_name_temp[2] = { ' ','\0' };
+										file_name_temp[0] = secondIter + 48;
+										const std::string file_name_temp_m = file_name_temp;
+										const std::string file_name_temp2 = "block_" + file_name_temp_m;
+										const std::string sHash = stlplus::create_filespec(sMatchesOutputDir_hash, stlplus::basename_part(file_name_temp2), "hash");
+										if (!stlplus::file_exists(sHash)) {
+											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
+										}
+										else {
+											std::cerr << "error when creating hash files!" << std::endl;
 										}
 									}
 								}
@@ -3723,7 +4142,7 @@ int computeMatches::ComputeMatches::computeHashes()
 		}
 	}
 }
-int computeMatches::ComputeMatches::computeMatches() {
+int computeMatches::computeMatches() {
 	//// From matching mode compute the pair list that have to be matched:
 	//Pair_Set pairs;
 	//switch (ePairmode)
@@ -3737,4 +4156,5 @@ int computeMatches::ComputeMatches::computeMatches() {
 	//	}
 	//	break;
 	//}
+	return 1;
 }

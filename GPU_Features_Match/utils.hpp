@@ -13,10 +13,12 @@
 #include <string>
 #include <sstream>  
 
+#include <openMVG/types.hpp>
 #include "openMVG/stl/dynamic_bitset.hpp"
 #include "computeMatchesCU.h"
 
 using namespace std;
+using namespace openMVG;
 using namespace computeMatches;
 
 
@@ -73,15 +75,19 @@ namespace hashed_code_file_io {
 
 		size_t len_buckets_0 = sHashedDescriptions.buckets.size();
 		size_t len_buckets_1 = sHashedDescriptions.buckets[0].size();
-		size_t len_buckets_2 = sHashedDescriptions.buckets[0][0].size();
+		//size_t len_buckets_2 = sHashedDescriptions.buckets[0][0].size();
 
 		out.write((char*)&len_buckets_0, sizeof(len_buckets_0));
 		out.write((char*)&len_buckets_1, sizeof(len_buckets_1));
-		out.write((char*)&len_buckets_2, sizeof(len_buckets_2));
+		//out.write((char*)&len_buckets_2, sizeof(len_buckets_2));
 
 		for (int i = 0; i < sHashedDescriptions.buckets.size(); i++) {
 			for (int j = 0; j < sHashedDescriptions.buckets[0].size(); j++) {
-				out.write((char*)&sHashedDescriptions.buckets[i][j][0], len_buckets_2*sizeof(int));
+				size_t len_buckets_2 = sHashedDescriptions.buckets[i][j].size();
+				out.write((char*)&len_buckets_2, sizeof(len_buckets_2));
+				if (len_buckets_2 != 0) {
+					out.write((char*)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
+				}
 			}
 		}
 		return true;
@@ -103,18 +109,22 @@ namespace hashed_code_file_io {
 
 		size_t len_buckets_0;
 		size_t len_buckets_1;
-		size_t len_buckets_2;
+		//size_t len_buckets_2;
 
 		in.read((char*)&len_buckets_0, sizeof(len_buckets_0));
 		in.read((char*)&len_buckets_1, sizeof(len_buckets_1));
-		in.read((char*)&len_buckets_2, sizeof(len_buckets_2));
+		//in.read((char*)&len_buckets_2, sizeof(len_buckets_2));
 
 		sHashedDescriptions.buckets.resize(len_buckets_0);
 		for (int i = 0; i < len_buckets_0; i++) {
 			sHashedDescriptions.buckets[i].resize(len_buckets_1);
 			for (int j = 0; j < len_buckets_1; j++) {
+				size_t len_buckets_2;
+				in.read((char*)&len_buckets_2, sizeof(len_buckets_2));
 				sHashedDescriptions.buckets[i][j].resize(len_buckets_2);
-				in.read((char *)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
+				if (len_buckets_2 != 0) {
+					in.read((char *)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
+				}
 			}
 		}
 		return true;
