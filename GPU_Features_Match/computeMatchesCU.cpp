@@ -586,47 +586,47 @@ int computeMatches::computeHashes
 							//第二层数据调度策略 CPU内存 <--> GPU内存
 							//1.启用零拷贝内存
 							cudaSetDeviceFlags(cudaDeviceMapHost);
+
+							std::vector <int> mat_I_cols;
+							mat_I_cols.resize(image_count_per_block);
+
+							std::vector <int> mat_I_pre_cols;
+							mat_I_pre_cols.resize(image_count_per_block);
+
+							//host存放当前块内的图像描述符数据的指针数组
+							const float *mat_I_point_array_CPU[image_count_per_block];
+							//host存放当前块数据哈希计算结果的指针数组
+							float *hash_base_array_CPU[image_count_per_block];
+							//device存放当前块内的图像描述符数据的指针数组
+							float *mat_I_point_array_GPU[image_count_per_block];
+							//device存放当前块数据哈希计算结果的指针数组
+							float *hash_base_array_GPU[image_count_per_block];
+							//保存整个块内数据描述符的数量大小
+
+							//host存放预读块内的图像描述符数据的指针数组
+							const float *mat_I_pre_point_array_CPU[image_count_per_block];
+							//host存放预读块内数据哈希计算结果的指针数组
+							//float *hash_base_pre_array_CPU[image_count_per_block];
+							//device存放预读块内的图像描述符数据的指针数组
+							float *mat_I_pre_point_array_GPU[image_count_per_block];
+							//device存放预读块数据哈希计算结果的指针数组
+							//float *hash_base_pre_array_GPU[image_count_per_block];
+
+							//initialize the pointer array
+							for (int i = 0; i < image_count_per_block; i++) {
+								mat_I_point_array_CPU[i] = NULL;
+								hash_base_array_CPU[i] = NULL;
+								mat_I_point_array_GPU[i] = NULL;
+								hash_base_array_GPU[i] = NULL;
+
+								mat_I_pre_point_array_CPU[i] = NULL;
+								//hash_base_pre_array_CPU[i] = NULL;
+								mat_I_pre_point_array_GPU[i] = NULL;
+								//hash_base_pre_array_GPU[i] = NULL;
+							}
+
 							for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
 								//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
-								std::vector <int> mat_I_cols;
-								mat_I_cols.resize(image_count_per_block);
-
-								std::vector <int> mat_I_pre_cols;
-								mat_I_pre_cols.resize(image_count_per_block);
-
-								//host存放当前块内的图像描述符数据的指针数组
-								const float *mat_I_point_array_CPU[image_count_per_block];
-								//host存放当前块数据哈希计算结果的指针数组
-								float *hash_base_array_CPU[image_count_per_block];
-								//device存放当前块内的图像描述符数据的指针数组
-								float *mat_I_point_array_GPU[image_count_per_block];
-								//device存放当前块数据哈希计算结果的指针数组
-								float *hash_base_array_GPU[image_count_per_block];
-								//保存整个块内数据描述符的数量大小
-								
-								//host存放预读块内的图像描述符数据的指针数组
-								const float *mat_I_pre_point_array_CPU[image_count_per_block];
-								//host存放预读块内数据哈希计算结果的指针数组
-								//float *hash_base_pre_array_CPU[image_count_per_block];
-								//device存放预读块内的图像描述符数据的指针数组
-								float *mat_I_pre_point_array_GPU[image_count_per_block];
-								//device存放预读块数据哈希计算结果的指针数组
-								//float *hash_base_pre_array_GPU[image_count_per_block];
-
-								//initialize the pointer array
-								for (int i = 0; i < image_count_per_block; i++) {
-									mat_I_point_array_CPU[i] = NULL;
-									hash_base_array_CPU[i] = NULL;
-									mat_I_point_array_GPU[i] = NULL;
-									hash_base_array_GPU[i] = NULL;
-
-									mat_I_pre_point_array_CPU[i] = NULL;
-									//hash_base_pre_array_CPU[i] = NULL;
-									mat_I_pre_point_array_GPU[i] = NULL;
-									//hash_base_pre_array_GPU[i] = NULL;
-								}
-
-								
 								
 								{
 									if (secondIter == 0) {
@@ -821,7 +821,7 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cerr << "error when creating hash files!" << std::endl;
+												std::cout << sHash << "already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -861,7 +861,7 @@ int computeMatches::computeHashes
 												cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 												cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 											}
-											mat_I_pre_cols.push_back(mat_I.cols());
+											mat_I_pre_cols[m] = mat_I.cols();
 										}
 									}
 									else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
@@ -950,7 +950,7 @@ int computeMatches::computeHashes
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1001,7 +1001,7 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cerr << "error when creating hash files!" << std::endl;
+												std::cout << sHash << "already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1040,7 +1040,7 @@ int computeMatches::computeHashes
 												cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 												cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 											}
-											mat_I_pre_cols.push_back(mat_I.cols());
+											mat_I_pre_cols[m] = mat_I.cols();
 										}
 									}
 									else if (secondIter == block_count_per_group - 2) {
@@ -1129,7 +1129,8 @@ int computeMatches::computeHashes
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1179,10 +1180,11 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cerr << "error when creating hash files!" << std::endl;
+												std::cout << sHash << "already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
+										secondIter++;
 										for (int m = 0; m < image_count_per_block; ++m) {
 											mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
 											mat_I_pre_point_array_CPU[m] = NULL;
@@ -1275,7 +1277,8 @@ int computeMatches::computeHashes
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1325,12 +1328,12 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cerr << "error when creating hash files!" << std::endl;
+												std::cout << sHash << "already exists" << std::endl;
 											}
 										}
 									}
 									else {
-										cout << "error in the second data exchange schedule! \n" << endl;
+										std::cout << "computing hash for group" << firstIter << "has done!"<< std::endl;
 										return EXIT_FAILURE;
 									}
 								}
@@ -1521,48 +1524,47 @@ int computeMatches::computeHashes
 						//第二层数据调度策略 CPU内存 <--> GPU内存
 						//1.启用零拷贝内存
 						cudaSetDeviceFlags(cudaDeviceMapHost);
+
+						std::vector <int> mat_I_cols;
+						mat_I_cols.resize(image_count_per_block);
+
+						std::vector <int> mat_I_pre_cols;
+						mat_I_pre_cols.resize(image_count_per_block);
+
+						//host存放当前块内的图像描述符数据的指针数组
+						const float *mat_I_point_array_CPU[image_count_per_block];
+						//host存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_CPU[image_count_per_block];
+						//device存放当前块内的图像描述符数据的指针数组
+						float *mat_I_point_array_GPU[image_count_per_block];
+						//device存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_GPU[image_count_per_block];
+						//保存整个块内数据描述符的数量大小
+
+						//host存放预读块内的图像描述符数据的指针数组
+						const float *mat_I_pre_point_array_CPU[image_count_per_block];
+						//host存放预读块内数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_CPU[image_count_per_block];
+						//device存放预读块内的图像描述符数据的指针数组
+						float *mat_I_pre_point_array_GPU[image_count_per_block];
+						//device存放预读块数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_GPU[image_count_per_block];
+
+						//initialize all pointers
+						for (int i = 0; i < image_count_per_block; i++) {
+							mat_I_point_array_CPU[i] = NULL;
+							hash_base_array_CPU[i] = NULL;
+							mat_I_point_array_GPU[i] = NULL;
+							hash_base_array_GPU[i] = NULL;
+
+							mat_I_pre_point_array_CPU[i] = NULL;
+							//hash_base_pre_array_CPU[i] = NULL;
+							mat_I_pre_point_array_GPU[i] = NULL;
+							//hash_base_pre_array_GPU[i] = NULL;
+						}
+
 						for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
 							//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
-							std::vector <int> mat_I_cols;
-							mat_I_cols.resize(image_count_per_block);
-
-							std::vector <int> mat_I_pre_cols;
-							mat_I_pre_cols.resize(image_count_per_block);
-
-							//host存放当前块内的图像描述符数据的指针数组
-							const float *mat_I_point_array_CPU[image_count_per_block];
-							//host存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_CPU[image_count_per_block];
-							//device存放当前块内的图像描述符数据的指针数组
-							float *mat_I_point_array_GPU[image_count_per_block];
-							//device存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_GPU[image_count_per_block];
-							//保存整个块内数据描述符的数量大小
-
-							//host存放预读块内的图像描述符数据的指针数组
-							const float *mat_I_pre_point_array_CPU[image_count_per_block];
-							//host存放预读块内数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_CPU[image_count_per_block];
-							//device存放预读块内的图像描述符数据的指针数组
-							float *mat_I_pre_point_array_GPU[image_count_per_block];
-							//device存放预读块数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_GPU[image_count_per_block];
-
-							//initialize all pointers
-							for (int i = 0; i < image_count_per_block; i++) {
-								mat_I_point_array_CPU[i] = NULL;
-								hash_base_array_CPU[i] = NULL;
-								mat_I_point_array_GPU[i] = NULL;
-								hash_base_array_GPU[i] = NULL;
-
-								mat_I_pre_point_array_CPU[i] = NULL;
-								//hash_base_pre_array_CPU[i] = NULL;
-								mat_I_pre_point_array_GPU[i] = NULL;
-								//hash_base_pre_array_GPU[i] = NULL;
-							}
-
-							
-
 							{
 								if (secondIter == 0) {
 									//store all hash result for this block
@@ -1593,7 +1595,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_point_array_GPU[m], mat_I_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_cols.push_back(mat_I.cols());
+										mat_I_cols[m] = mat_I.cols();
 
 									}
 									//处理预读块内每一张图片的数据后上传到GPU上
@@ -1622,7 +1624,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 
 									//为当前块数据做hash
@@ -1706,7 +1708,9 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1742,7 +1746,7 @@ int computeMatches::computeHashes
 										}
 									}
 									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-										{
+									{
 										char file_io_temp_i[2] = { ' ','\0' };
 										file_io_temp_i[0] = secondIter + 48;
 										const std::string file_io_str_i = file_io_temp_i;
@@ -1756,9 +1760,9 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
-										}
+									}
 									//变换当前块与预读块的相关数据
 									for (int m = 0; m < image_count_per_block; ++m) {
 										mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
@@ -1797,7 +1801,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
@@ -1886,7 +1890,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1936,7 +1941,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -1975,7 +1980,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
@@ -2064,7 +2069,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -2114,10 +2120,11 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
+									secondIter++;
 									for (int m = 0; m < image_count_per_block; ++m) {
 										mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
 										mat_I_pre_point_array_CPU[m] = NULL;
@@ -2210,7 +2217,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -2260,12 +2268,12 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 								}
 								else {
-									cout << "error in the second data exchange schedule! \n" << endl;
+									std::cout << "computing hash for group" << firstIter << "has done" << std::endl;
 									return EXIT_FAILURE;
 								}
 							}
@@ -2452,48 +2460,47 @@ int computeMatches::computeHashes
 						//第二层数据调度策略 CPU内存 <--> GPU内存
 						//1.启用零拷贝内存
 						cudaSetDeviceFlags(cudaDeviceMapHost);
+
+						std::vector <int> mat_I_cols;
+						mat_I_cols.resize(image_count_per_block);
+
+						std::vector <int> mat_I_pre_cols;
+						mat_I_pre_cols.resize(image_count_per_block);
+
+						//host存放当前块内的图像描述符数据的指针数组
+						const float *mat_I_point_array_CPU[image_count_per_block];
+						//host存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_CPU[image_count_per_block];
+						//device存放当前块内的图像描述符数据的指针数组
+						float *mat_I_point_array_GPU[image_count_per_block];
+						//device存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_GPU[image_count_per_block];
+						//保存整个块内数据描述符的数量大小
+
+						//host存放预读块内的图像描述符数据的指针数组
+						const float *mat_I_pre_point_array_CPU[image_count_per_block];
+						//host存放预读块内数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_CPU[image_count_per_block];
+						//device存放预读块内的图像描述符数据的指针数组
+						float *mat_I_pre_point_array_GPU[image_count_per_block];
+						//device存放预读块数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_GPU[image_count_per_block];
+
+						//initialize all pointers
+						for (int i = 0; i < image_count_per_block; i++) {
+							mat_I_point_array_CPU[i] = NULL;
+							hash_base_array_CPU[i] = NULL;
+							mat_I_point_array_GPU[i] = NULL;
+							hash_base_array_GPU[i] = NULL;
+
+							mat_I_pre_point_array_CPU[i] = NULL;
+							//hash_base_pre_array_CPU[i] = NULL;
+							mat_I_pre_point_array_GPU[i] = NULL;
+							//hash_base_pre_array_GPU[i] = NULL;
+						}
+
 						for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
 							//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
-							std::vector <int> mat_I_cols;
-							mat_I_cols.resize(image_count_per_block);
-
-							std::vector <int> mat_I_pre_cols;
-							mat_I_pre_cols.resize(image_count_per_block);
-
-							//host存放当前块内的图像描述符数据的指针数组
-							const float *mat_I_point_array_CPU[image_count_per_block];
-							//host存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_CPU[image_count_per_block];
-							//device存放当前块内的图像描述符数据的指针数组
-							float *mat_I_point_array_GPU[image_count_per_block];
-							//device存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_GPU[image_count_per_block];
-							//保存整个块内数据描述符的数量大小
-
-							//host存放预读块内的图像描述符数据的指针数组
-							const float *mat_I_pre_point_array_CPU[image_count_per_block];
-							//host存放预读块内数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_CPU[image_count_per_block];
-							//device存放预读块内的图像描述符数据的指针数组
-							float *mat_I_pre_point_array_GPU[image_count_per_block];
-							//device存放预读块数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_GPU[image_count_per_block];
-
-							//initialize all pointers
-							for (int i = 0; i < image_count_per_block; i++) {
-								mat_I_point_array_CPU[i] = NULL;
-								hash_base_array_CPU[i] = NULL;
-								mat_I_point_array_GPU[i] = NULL;
-								hash_base_array_GPU[i] = NULL;
-
-								mat_I_pre_point_array_CPU[i] = NULL;
-								//hash_base_pre_array_CPU[i] = NULL;
-								mat_I_pre_point_array_GPU[i] = NULL;
-								//hash_base_pre_array_GPU[i] = NULL;
-							}
-
-							
-
 							{
 								if (secondIter == 0) {
 									//store all hash result for this block
@@ -2524,7 +2531,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_point_array_GPU[m], mat_I_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_cols.push_back(mat_I.cols());
+										mat_I_cols[m] = mat_I.cols();
 
 									}
 									//处理预读块内每一张图片的数据后上传到GPU上
@@ -2553,7 +2560,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 
 									//为当前块数据做hash
@@ -2637,7 +2644,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -2687,7 +2695,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2728,7 +2736,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
@@ -2817,7 +2825,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -2867,7 +2876,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2906,7 +2915,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
@@ -2995,7 +3004,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3045,10 +3055,11 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
+									secondIter++;
 									for (int m = 0; m < image_count_per_block; ++m) {
 										mat_I_point_array_CPU[m] = mat_I_pre_point_array_CPU[m];
 										mat_I_pre_point_array_CPU[m] = NULL;
@@ -3141,7 +3152,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3177,7 +3189,7 @@ int computeMatches::computeHashes
 										}
 									}
 									//将std::map<IndexT, HashedDescriptions> hashed_base_(也就是一整块的数据哈希处理的结果)存放到文件当中去
-										{
+									{
 										char file_io_temp_i[2] = { ' ','\0' };
 										file_io_temp_i[0] = secondIter + 48;
 										const std::string file_io_str_i = file_io_temp_i;
@@ -3191,12 +3203,12 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
-										}
+									}
 								}
 								else {
-									cout << "error in the second data exchange schedule! \n" << endl;
+									std::cout << "computing hash for group" << firstIter << "has done" << std::endl;
 									return EXIT_FAILURE;
 								}
 							}
@@ -3210,7 +3222,7 @@ int computeMatches::computeHashes
 			sSfM_Data_Filename_hash = sSfM_Data_Filename_hash_pre;
 			sMatchesOutputDir_hash = sMatchesOutputDir_hash_pre;
 			sfm_data_hash = sfm_data_hash_pre;
-			
+			firstIter++;
 			//---------------------------------------
 			// 直接处理当前组的数据
 			//---------------------------------------
@@ -3368,48 +3380,47 @@ int computeMatches::computeHashes
 						//第二层数据调度策略 CPU内存 <--> GPU内存
 						//1.启用零拷贝内存
 						cudaSetDeviceFlags(cudaDeviceMapHost);
+
+						std::vector <int> mat_I_cols;
+						mat_I_cols.resize(image_count_per_block);
+
+						std::vector <int> mat_I_pre_cols;
+						mat_I_pre_cols.resize(image_count_per_block);
+
+						//host存放当前块内的图像描述符数据的指针数组
+						const float *mat_I_point_array_CPU[image_count_per_block];
+						//host存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_CPU[image_count_per_block];
+						//device存放当前块内的图像描述符数据的指针数组
+						float *mat_I_point_array_GPU[image_count_per_block];
+						//device存放当前块数据哈希计算结果的指针数组
+						float *hash_base_array_GPU[image_count_per_block];
+						//保存整个块内数据描述符的数量大小
+
+						//host存放预读块内的图像描述符数据的指针数组
+						const float *mat_I_pre_point_array_CPU[image_count_per_block];
+						//host存放预读块内数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_CPU[image_count_per_block];
+						//device存放预读块内的图像描述符数据的指针数组
+						float *mat_I_pre_point_array_GPU[image_count_per_block];
+						//device存放预读块数据哈希计算结果的指针数组
+						//float *hash_base_pre_array_GPU[image_count_per_block];
+
+						//initialize all pointers
+						for (int i = 0; i < image_count_per_block; i++) {
+							mat_I_point_array_CPU[i] = NULL;
+							hash_base_array_CPU[i] = NULL;
+							mat_I_point_array_GPU[i] = NULL;
+							hash_base_array_GPU[i] = NULL;
+
+							mat_I_pre_point_array_CPU[i] = NULL;
+							//hash_base_pre_array_CPU[i] = NULL;
+							mat_I_pre_point_array_GPU[i] = NULL;
+							//hash_base_pre_array_GPU[i] = NULL;
+						}
+
 						for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
 							//处理每一块的数据，保证大概能把GPU内存塞满(或许应该多次试验看哪一组实验效果最好)
-							std::vector <int> mat_I_cols;
-							mat_I_cols.resize(image_count_per_block);
-
-							std::vector <int> mat_I_pre_cols;
-							mat_I_pre_cols.resize(image_count_per_block);
-
-							//host存放当前块内的图像描述符数据的指针数组
-							const float *mat_I_point_array_CPU[image_count_per_block];
-							//host存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_CPU[image_count_per_block];
-							//device存放当前块内的图像描述符数据的指针数组
-							float *mat_I_point_array_GPU[image_count_per_block];
-							//device存放当前块数据哈希计算结果的指针数组
-							float *hash_base_array_GPU[image_count_per_block];
-							//保存整个块内数据描述符的数量大小
-
-							//host存放预读块内的图像描述符数据的指针数组
-							const float *mat_I_pre_point_array_CPU[image_count_per_block];
-							//host存放预读块内数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_CPU[image_count_per_block];
-							//device存放预读块内的图像描述符数据的指针数组
-							float *mat_I_pre_point_array_GPU[image_count_per_block];
-							//device存放预读块数据哈希计算结果的指针数组
-							//float *hash_base_pre_array_GPU[image_count_per_block];
-
-							//initialize all pointers
-							for (int i = 0; i < image_count_per_block; i++) {
-								mat_I_point_array_CPU[i] = NULL;
-								hash_base_array_CPU[i] = NULL;
-								mat_I_point_array_GPU[i] = NULL;
-								hash_base_array_GPU[i] = NULL;
-
-								mat_I_pre_point_array_CPU[i] = NULL;
-								//hash_base_pre_array_CPU[i] = NULL;
-								mat_I_pre_point_array_GPU[i] = NULL;
-								//hash_base_pre_array_GPU[i] = NULL;
-							}
-
-							
-
 							{
 								if (secondIter == 0) {
 									//store all hash result for this block
@@ -3440,7 +3451,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_point_array_GPU[m], mat_I_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_cols.push_back(mat_I.cols());
+										mat_I_cols[m] = mat_I.cols();
 
 									}
 									//处理预读块内每一张图片的数据后上传到GPU上
@@ -3469,7 +3480,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 
 									//为当前块数据做hash
@@ -3553,7 +3564,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3603,7 +3615,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3644,7 +3656,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
@@ -3733,7 +3745,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3783,7 +3796,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3822,7 +3835,7 @@ int computeMatches::computeHashes
 											cudaMalloc((void **)&mat_I_pre_point_array_GPU[m], sizeof(float)*descriptionsMatSize);
 											cudaMemcpy(mat_I_pre_point_array_GPU[m], mat_I_pre_point_array_CPU[m], sizeof(float)*descriptionsMatSize, cudaMemcpyHostToDevice);
 										}
-										mat_I_pre_cols.push_back(mat_I.cols());
+										mat_I_pre_cols[m] = mat_I.cols();
 									}
 								}
 								else if (secondIter == block_count_per_group - 2) {
@@ -3911,7 +3924,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3961,7 +3975,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -4057,7 +4071,8 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -4107,12 +4122,12 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cerr << "error when creating hash files!" << std::endl;
+											std::cout << sHash << "already exists" << std::endl;
 										}
 									}
 								}
 								else {
-									cout << "error in the second data exchange schedule! \n" << endl;
+									cout << "computing hash for group" << firstIter <<"has done!" << endl;
 									return EXIT_FAILURE;
 								}
 							}
@@ -4124,7 +4139,7 @@ int computeMatches::computeHashes
 			///////
 		}
 		else {
-			cout << "error in first data exchange schedule! \n" << endl;
+			std::cout << "computing hash for all groups has done!" << std::endl;
 			return EXIT_FAILURE;
 		}
 		
