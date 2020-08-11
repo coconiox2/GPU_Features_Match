@@ -771,7 +771,7 @@ int computeMatches::computeHashes
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -927,6 +927,7 @@ int computeMatches::computeHashes
 														imgCountBeforeBlockM += mat_I_cols[m];
 													}
 													for (int i = 0; i < mat_I_cols[m]; ++i) {
+														//std::cout << "i: "<< i << std::endl;
 														// Allocate space for each bucket id.
 														IndexT m_index = m;
 														hashed_base_[m_index].hashed_desc.resize(mat_I_cols[m]);
@@ -943,14 +944,16 @@ int computeMatches::computeHashes
 														//Eigen::VectorXf secondary_projection;
 														for (int j = 0; j < myCascadeHasher.nb_bucket_groups_; ++j)
 														{
+															//std::cout << "j: " << j << std::endl;
 															uint16_t bucket_id = 0;
 
 
 
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
+																//std::cout << "k: " << k << std::endl;
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1129,7 +1132,7 @@ int computeMatches::computeHashes
 															for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
@@ -1278,7 +1281,7 @@ int computeMatches::computeHashes
 															{
 																//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
-																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+																bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 																//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 															}
 															hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -1333,13 +1336,13 @@ int computeMatches::computeHashes
 										}
 									}
 									else {
-										std::cout << "computing hash for group" << firstIter << "has done!"<< std::endl;
+										std::cerr << "error when index the secondIter!"<< std::endl;
 										return EXIT_FAILURE;
 									}
 								}
 							}
 						}
-						std::cout << "Task (Regions Hashing) done in (s): " << timer.elapsed() << std::endl;
+						std::cout << "Task (Regions Hashing for group " <<firstIter << ") done in (s): " << timer.elapsed() << std::endl;
 					}
 				}
 				//
@@ -1509,8 +1512,8 @@ int computeMatches::computeHashes
 										}
 					if (!collectionMatcher)
 					{
-						std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
-						return EXIT_FAILURE;
+						//std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+						//return EXIT_FAILURE;
 					}
 					// Perform the cascade hashing
 					system::Timer timer;
@@ -1518,7 +1521,8 @@ int computeMatches::computeHashes
 						// Collect used view indexes for an image group
 						std::set<IndexT> used_index;
 						for (int i = 0; i < image_count_per_group; i++) {
-							used_index.insert(firstIter * image_count_per_group + i);
+							used_index.insert(i);
+							//used_index.insert(firstIter * image_count_per_group + i);
 						}
 						//openMVG::matching_image_collection::Cascade_Hash_Generate sCascade_Hash_Generate;
 						//第二层数据调度策略 CPU内存 <--> GPU内存
@@ -1709,7 +1713,7 @@ int computeMatches::computeHashes
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
 
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -1890,7 +1894,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -2069,7 +2073,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -2217,7 +2221,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -2273,13 +2277,13 @@ int computeMatches::computeHashes
 									}
 								}
 								else {
-									std::cout << "computing hash for group" << firstIter << "has done" << std::endl;
+									std::cerr << "error when index the secondIter!" << std::endl;
 									return EXIT_FAILURE;
 								}
 							}
 						}
 					}
-					std::cout << "Task (Regions Hashing) done in (s): " << timer.elapsed() << std::endl;
+					std::cout << "Task (Regions Hashing for group " << firstIter << ") done in (s): " << timer.elapsed() << std::endl;
 				}
 			}
 			///////
@@ -2445,8 +2449,8 @@ int computeMatches::computeHashes
 										}
 					if (!collectionMatcher)
 					{
-						std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
-						return EXIT_FAILURE;
+						//std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+						//return EXIT_FAILURE;
 					}
 					// Perform the cascade hashing
 					system::Timer timer;
@@ -2454,7 +2458,8 @@ int computeMatches::computeHashes
 						// Collect used view indexes for an image group
 						std::set<IndexT> used_index;
 						for (int i = 0; i < image_count_per_group; i++) {
-							used_index.insert(firstIter * image_count_per_group + i);
+							used_index.insert(i);
+							//used_index.insert(firstIter * image_count_per_group + i);
 						}
 						//openMVG::matching_image_collection::Cascade_Hash_Generate sCascade_Hash_Generate;
 						//第二层数据调度策略 CPU内存 <--> GPU内存
@@ -2644,7 +2649,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -2825,7 +2830,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -3005,7 +3010,7 @@ int computeMatches::computeHashes
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3153,7 +3158,7 @@ int computeMatches::computeHashes
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
 														hashed_base_[m_index].hashed_desc[i].bucket_ids[j] = bucket_id;
@@ -3365,8 +3370,8 @@ int computeMatches::computeHashes
 										}
 					if (!collectionMatcher)
 					{
-						std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
-						return EXIT_FAILURE;
+						//std::cerr << "Invalid Nearest Neighbor method: " << sNearestMatchingMethod << std::endl;
+						//return EXIT_FAILURE;
 					}
 					// Perform the cascade hashing
 					system::Timer timer;
@@ -3374,7 +3379,8 @@ int computeMatches::computeHashes
 						// Collect used view indexes for an image group
 						std::set<IndexT> used_index;
 						for (int i = 0; i < image_count_per_group; i++) {
-							used_index.insert(firstIter * image_count_per_group + i);
+							used_index.insert(i);
+							//used_index.insert(firstIter * image_count_per_group + i);
 						}
 						//openMVG::matching_image_collection::Cascade_Hash_Generate sCascade_Hash_Generate;
 						//第二层数据调度策略 CPU内存 <--> GPU内存
@@ -3564,7 +3570,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -3745,7 +3751,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -3924,7 +3930,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -3990,6 +3996,7 @@ int computeMatches::computeHashes
 									//处理最后一块数据
 									// 同步函数
 									cudaThreadSynchronize();
+									secondIter++;
 									//为最后一块(当前的预读块)数据做hash
 									{
 										for (int m = 0; m < image_count_per_block; ++m) {
@@ -4071,7 +4078,7 @@ int computeMatches::computeHashes
 														for (int k = 0; k < myCascadeHasher.nb_bits_per_bucket_; ++k)
 														{
 															//bucket_id = (bucket_id << 1) + (secondary_projection_mat(k, i) > 0 ? 1 : 0);
-															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
+															bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((i)*(myCascadeHasher.nb_bits_per_bucket_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection_CPU[((imgCountBeforeBlockM + i)*(myCascadeHasher.nb_hash_code_) + k)] > 0 ? 1 : 0);
 															//bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
 														}
@@ -4127,19 +4134,19 @@ int computeMatches::computeHashes
 									}
 								}
 								else {
-									cout << "computing hash for group" << firstIter <<"has done!" << endl;
+									std::cerr << "error when index the secondIter!" << std::endl;
 									return EXIT_FAILURE;
 								}
 							}
 						}
 					}
-					std::cout << "Task (Regions Matching) done in (s): " << timer.elapsed() << std::endl;
+					std::cout << "Task (Regions Hashing for group " << firstIter << ") done in (s): " << timer.elapsed() << std::endl;
 				}
 			}
 			///////
 		}
 		else {
-			std::cout << "computing hash for all groups has done!" << std::endl;
+			std::cerr << "error when index the firstIter!" << std::endl;
 			return EXIT_FAILURE;
 		}
 		
@@ -4156,6 +4163,8 @@ int computeMatches::computeHashes
 			secondary_hash_projection_data_GPU[i] = NULL;
 		}
 	}
+	std::cout << "compute hash for all groups success!" << std::endl;
+	return EXIT_SUCCESS;
 }
 int computeMatches::computeMatches() {
 	//// From matching mode compute the pair list that have to be matched:

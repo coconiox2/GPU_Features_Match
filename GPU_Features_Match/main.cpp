@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
 	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor);
 	computeMatches::computeHashes(_zero_mean_descriptor);
 	computeMatches::computeMatches();
-	computeMatches::test();
+	//computeMatches::test();
 	
 	
 	getchar();
