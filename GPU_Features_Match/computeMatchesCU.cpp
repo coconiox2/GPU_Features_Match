@@ -821,7 +821,7 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cout << sHash << "already exists" << std::endl;
+												std::cout << sHash << " already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1004,7 +1004,7 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cout << sHash << "already exists" << std::endl;
+												std::cout << sHash << " already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1183,7 +1183,7 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cout << sHash << "already exists" << std::endl;
+												std::cout << sHash << " already exists" << std::endl;
 											}
 										}
 										//变换当前块与预读块的相关数据
@@ -1331,12 +1331,12 @@ int computeMatches::computeHashes
 												hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 											}
 											else {
-												std::cout << sHash << "already exists" << std::endl;
+												std::cout << sHash << " already exists" << std::endl;
 											}
 										}
 									}
 									else {
-										std::cerr << "error when index the secondIter!"<< std::endl;
+										std::cerr << "error when index the secondIter!:"<< secondIter << std::endl;
 										return EXIT_FAILURE;
 									}
 								}
@@ -1764,7 +1764,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -1945,7 +1945,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2124,7 +2124,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2272,12 +2272,12 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 								}
 								else {
-									std::cerr << "error when index the secondIter!" << std::endl;
+									std::cerr << "error when index the secondIter!:" << secondIter <<std::endl;
 									return EXIT_FAILURE;
 								}
 							}
@@ -2700,7 +2700,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -2881,7 +2881,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3060,7 +3060,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3208,7 +3208,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 								}
@@ -3621,7 +3621,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3802,7 +3802,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -3981,7 +3981,7 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 									//变换当前块与预读块的相关数据
@@ -4129,12 +4129,12 @@ int computeMatches::computeHashes
 											hashed_code_file_io::write_hashed_base(sHash, hashed_base_);
 										}
 										else {
-											std::cout << sHash << "already exists" << std::endl;
+											std::cout << sHash << " already exists" << std::endl;
 										}
 									}
 								}
 								else {
-									std::cerr << "error when index the secondIter!" << std::endl;
+									std::cerr << "error when index the secondIter!:" << secondIter << std::endl;
 									return EXIT_FAILURE;
 								}
 							}
@@ -4146,7 +4146,7 @@ int computeMatches::computeHashes
 			///////
 		}
 		else {
-			std::cerr << "error when index the firstIter!" << std::endl;
+			std::cerr << "error when index the firstIter!:" << firstIter <<std::endl;
 			return EXIT_FAILURE;
 		}
 		
@@ -4166,19 +4166,174 @@ int computeMatches::computeHashes
 	std::cout << "compute hash for all groups success!" << std::endl;
 	return EXIT_SUCCESS;
 }
+
+void match_block_itself
+(
+	std::string matches_final_result_dir,
+	std::string filename_hash_mid_result
+)
+{
+	//当前组目录
+	if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir)) {
+		std::cerr << "\nIt is an invalid output directory" << std::endl;
+		return;
+	}
+
+	//当前 块哈希结果文件名
+	if (!stlplus::file_exists(filename_hash_mid_result)) {
+		std::cerr << "\nIt is an invalid input hashcode mid result file!" << std::endl;
+		return;
+	}
+	std::map<openMVG::IndexT, HashedDescriptions> shashed_base_;
+	hashed_code_file_io::read_hashed_base(filename_hash_mid_result, shashed_base_);
+	std::cout << shashed_base_.size()
+		<< shashed_base_[0].hashed_desc.size() 
+		<< shashed_base_[0].buckets.size() 
+		<< std::endl;
+}
+
 int computeMatches::computeMatches() {
-	//// From matching mode compute the pair list that have to be matched:
-	//Pair_Set pairs;
-	//switch (ePairmode)
-	//{
-	//case PAIR_EXHAUSTIVE: pairs = exhaustivePairs(sfm_data_hash.GetViews().size()); break;
-	//case PAIR_CONTIGUOUS: pairs = contiguousWithOverlap(sfm_data_hash.GetViews().size(), iMatchingVideoMode); break;
-	//case PAIR_FROM_FILE:
-	//	if (!loadPairs(sfm_data_hash.GetViews().size(), sPredefinedPairList, pairs))
-	//	{
-	//		return EXIT_FAILURE;
-	//	}
-	//	break;
-	//}
-	return 1;
+	
+	//fundamental matrix
+	std::string sGeometricModel = "f";
+	//lowe's filter radio
+	float fDistRatio = 0.8f;
+	int iMatchingVideoMode = -1;
+	std::string sPredefinedPairList = "";
+	std::string sNearestMatchingMethod = "AUTO";
+	bool bForce = false;
+	bool bGuided_matching = false;
+	int imax_iteration = 2048;
+	unsigned int ui_max_cache_size = 0;
+
+	//当前组目录
+	std::string filename_hash_mid_result;
+	std::string matches_final_result_dir;
+	//预读组目录
+	std::string filename_hash_mid_result_pre;
+	std::string matches_final_result_dir_pre;
+
+	std::cout << " You called : " << "\n"
+		<< "computeMatches" << "\n"
+		/*<< "--input_file " << sSfM_Data_Filename_hash << "\n"
+		<< "--out_dir " << sMatchesOutputDir_hash << "\n"*/
+		<< "Optional parameters:" << "\n"
+		<< "--force " << bForce << "\n"
+		<< "--ratio " << fDistRatio << "\n"
+		<< "--geometric_model " << sGeometricModel << "\n"
+		<< "--video_mode_matching " << iMatchingVideoMode << "\n"
+		<< "--pair_list " << sPredefinedPairList << "\n"
+		<< "--nearest_matching_method " << sNearestMatchingMethod << "\n"
+		<< "--guided_matching " << bGuided_matching << "\n"
+		<< "--cache_size " << ((ui_max_cache_size == 0) ? "unlimited" : std::to_string(ui_max_cache_size)) << std::endl;
+	EPairMode ePairmode = (iMatchingVideoMode == -1) ? PAIR_EXHAUSTIVE : PAIR_CONTIGUOUS;
+	// none of use
+	if (sPredefinedPairList.length()) {
+		ePairmode = PAIR_FROM_FILE;
+		if (iMatchingVideoMode>0) {
+			std::cerr << "\nIncompatible options: --videoModeMatching and --pairList" << std::endl;
+			return EXIT_FAILURE;
+		}
+	}
+
+	EGeometricModel eGeometricModelToCompute = FUNDAMENTAL_MATRIX;
+	std::string sGeometricMatchesFilename = "";
+	switch (sGeometricModel[0])
+	{
+		case 'f': case 'F':
+			eGeometricModelToCompute = FUNDAMENTAL_MATRIX;
+			sGeometricMatchesFilename = "matches.f.bin";
+			break;
+		case 'e': case 'E':
+			eGeometricModelToCompute = ESSENTIAL_MATRIX;
+			sGeometricMatchesFilename = "matches.e.bin";
+			break;
+		case 'h': case 'H':
+			eGeometricModelToCompute = HOMOGRAPHY_MATRIX;
+			sGeometricMatchesFilename = "matches.h.bin";
+			break;
+		case 'a': case 'A':
+			eGeometricModelToCompute = ESSENTIAL_MATRIX_ANGULAR;
+			sGeometricMatchesFilename = "matches.f.bin";
+			break;
+		case 'o': case 'O':
+			eGeometricModelToCompute = ESSENTIAL_MATRIX_ORTHO;
+			sGeometricMatchesFilename = "matches.o.bin";
+			break;
+		default:
+			std::cerr << "Unknown geometric model" << std::endl;
+			return EXIT_FAILURE;
+	}
+
+	//先每一个块内自己匹配
+	for (int firstIter = 0; firstIter < group_count; firstIter++) {
+		if (firstIter == 0) {
+
+			char temp_i[2] = { ' ','\0' };
+			temp_i[0] = firstIter + 48;
+			const std::string str_i = temp_i;
+
+			//filename_hash_mid_result = sSfM_Data_FilenameDir_father + "DJI_" + str_i + "_build/" + "sfm_data.json";
+			matches_final_result_dir = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
+
+			temp_i[0] = firstIter + 1 + 48;
+			const std::string str_i_plus_1 = temp_i;
+			//filename_hash_mid_result_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_i_plus_1 + "_build/" + "sfm_data.json";
+			matches_final_result_dir_pre = sMatchesOutputDir_father + "DJI_" + str_i_plus_1 + "_build/";
+
+			//当前组目录
+			if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir)) {
+				std::cerr << "\nIt is an invalid output directory" << std::endl;
+				return EXIT_FAILURE;
+			}
+			//预读组目录
+			if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre)) {
+				std::cerr << "\nIt is an invalid output directory" << std::endl;
+				return EXIT_FAILURE;
+			}
+
+			//先读进来两组数据，处理第一组，第一组处理完后把第二组的值赋给第一组，再从磁盘里读下一组放到pre里
+			{
+				for (int secondIter = 0; secondIter < block_count_per_group; secondIter++) {
+					if (secondIter == 0) {
+						//处理好 块哈希 结果文件名
+						char temp_j[2] = { ' ','\0' };
+						temp_j[0] = secondIter + 48;
+						const std::string str_j = temp_j;
+
+						filename_hash_mid_result = matches_final_result_dir + "block_" + str_j + ".hash";
+
+						temp_j[0] = secondIter + 1 + 48;
+						const std::string str_j_plus_1 = temp_j;
+						filename_hash_mid_result_pre = matches_final_result_dir_pre + "block_" + str_j_plus_1 + ".hash";
+
+						match_block_itself(matches_final_result_dir, filename_hash_mid_result);
+						
+					}
+					else if (secondIter > 0 && secondIter < block_count_per_group - 2) {
+
+					}
+					else if (secondIter == block_count_per_group - 2) {
+
+					}
+					else {
+						std::cerr << "error when index secondIter!:" << secondIter << std::endl;
+					}
+					
+				}
+			}
+		}
+		else if (firstIter > 0 && firstIter < group_count-2) {
+
+		}
+		else if (firstIter == group_count - 2) {
+			
+		}
+		else {
+			std::cerr << "error when index firstIter!:" << firstIter << std::endl;
+			return EXIT_FAILURE;
+		}
+	}
+	std::cout << "match for all groups has done!" << std::endl;
+	return EXIT_SUCCESS;
 }

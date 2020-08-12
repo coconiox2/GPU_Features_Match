@@ -21,7 +21,7 @@ using namespace std;
 using namespace openMVG;
 using namespace computeMatches;
 
-
+using BlockType = unsigned char;
 
 namespace hashed_code_file_io {
 	
@@ -33,11 +33,14 @@ namespace hashed_code_file_io {
 	{
 		size_t len_hash_code = sHashedDescription.hash_code.size();
 		out.write((char*)&len_hash_code, sizeof(len_hash_code));
-		out.write((char*)&sHashedDescription.hash_code[0], len_hash_code * sizeof(sHashedDescription.hash_code[0]));
+		out.write((char*)&sHashedDescription.hash_code.data()[0], 16 * sizeof(BlockType));
 
 		size_t len_bucket_ids = sHashedDescription.bucket_ids.size();
 		out.write((char*)&len_bucket_ids, sizeof(len_bucket_ids));
-		out.write((char*)&sHashedDescription.bucket_ids[0], len_bucket_ids * sizeof(uint16_t));
+		for (int i = 0; i < len_bucket_ids; i++) {
+			out.write((char*)&sHashedDescription.bucket_ids[i], sizeof(uint16_t));
+		}
+		//out.write((char*)&sHashedDescription.bucket_ids[0], len_bucket_ids * sizeof(uint16_t));
 
 		return true;
 	}
@@ -50,13 +53,16 @@ namespace hashed_code_file_io {
 	{
 		size_t len_hash_code;
 		in.read((char*)&len_hash_code, sizeof(len_hash_code));
-		sHashedDescription.hash_code = stl::dynamic_bitset(descriptionDimension);
-		in.read((char*)&sHashedDescription.hash_code[0], descriptionDimension * sizeof(sHashedDescription.hash_code[0]));
+		sHashedDescription.hash_code = stl::dynamic_bitset(len_hash_code);
+		in.read((char*)&sHashedDescription.hash_code.data()[0], 16 * sizeof(BlockType) );
 
 		size_t len_bucket_ids;
 		in.read((char*)&len_bucket_ids, sizeof(len_bucket_ids));
 		sHashedDescription.bucket_ids.resize(len_bucket_ids);
-		in.read((char*)&sHashedDescription.bucket_ids[0], len_bucket_ids * sizeof(uint16_t));
+		for (int i = 0; i < len_bucket_ids; i++) {
+			in.read((char*)&sHashedDescription.bucket_ids[i], sizeof(uint16_t));
+		}
+		//in.read((char*)&sHashedDescription.bucket_ids[0], len_bucket_ids * sizeof(uint16_t));
 		return true;
 	}
 
@@ -86,7 +92,10 @@ namespace hashed_code_file_io {
 				size_t len_buckets_2 = sHashedDescriptions.buckets[i][j].size();
 				out.write((char*)&len_buckets_2, sizeof(len_buckets_2));
 				if (len_buckets_2 != 0) {
-					out.write((char*)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
+					for (int k = 0; k < len_buckets_2; k++) {
+						out.write((char*)&sHashedDescriptions.buckets[i][j][k], sizeof(int));
+					}
+					//out.write((char*)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
 				}
 			}
 		}
@@ -104,6 +113,7 @@ namespace hashed_code_file_io {
 
 		sHashedDescriptions.hashed_desc.resize(len_hashed_desc);
 		for (int i = 0; i < len_hashed_desc; i++) {
+			std::cout << i << std::endl;
 			read_Hashed_Description(in, sHashedDescriptions.hashed_desc[i]);
 		}
 
@@ -123,7 +133,10 @@ namespace hashed_code_file_io {
 				in.read((char*)&len_buckets_2, sizeof(len_buckets_2));
 				sHashedDescriptions.buckets[i][j].resize(len_buckets_2);
 				if (len_buckets_2 != 0) {
-					in.read((char *)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
+					for (int k = 0; k < len_buckets_2; k++) {
+						in.read((char *)&sHashedDescriptions.buckets[i][j][k], sizeof(int));
+					}
+					//in.read((char *)&sHashedDescriptions.buckets[i][j][0], len_buckets_2 * sizeof(int));
 				}
 			}
 		}
