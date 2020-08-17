@@ -32,7 +32,7 @@
 #include <sstream>  
 
 #include "openMVG/matching/indMatch.hpp"
-#include "openMVG/matching/metric.hpp"
+#include "metric.hpp"
 #include "openMVG/numeric/eigen_alias_definition.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
 
@@ -477,6 +477,7 @@ namespace openMVG {
 				cublasDestroy(handle);
 				return result;
 			}
+
 			// Matches two collection of hashed descriptions with a fast matching scheme
 			// based on the hash codes previously generated.
 			template <typename MatrixT, typename DistanceType>
@@ -562,6 +563,8 @@ namespace openMVG {
 								hamming_distance) = candidate_id;
 						}
 					}
+
+					//GPU parallel here
 
 					// Compute the euclidean distance of the k descriptors with the best hamming
 					// distance.

@@ -82,6 +82,8 @@
   <ItemGroup>
     <ClInclude Include="cascade_hasher_GPU.hpp" />
     <ClInclude Include="computeMatchesCU.h" />
+    <ClInclude Include="metric.hpp" />
+    <ClInclude Include="metric_hamming.hpp" />
     <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <ItemGroup>
