@@ -36,6 +36,13 @@
 #include "openMVG/numeric/eigen_alias_definition.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
 
+extern "C"
+float computeEuclideanDistance
+(
+	const unsigned char * descriptionData2,
+	const unsigned char * descriptionData1,
+	size_t size
+);
 
 using namespace computeMatches;
 namespace openMVG {
@@ -519,6 +526,10 @@ namespace openMVG {
 
 				using HammingMetricType = matching::Hamming<stl::dynamic_bitset::BlockType>;
 				static const HammingMetricType metricH = {};
+
+				
+				//std::cout << std::endl << " - Match_HashedDescriptions_loop - " << std::endl;
+
 				for (int i = 0; i < hashed_descriptions1.hashed_desc.size(); ++i)
 				{
 					candidate_descriptors.clear();
@@ -572,14 +583,23 @@ namespace openMVG {
 					for (int j = 0; j < candidate_hamming_distances.cols() &&
 						(candidate_euclidean_distances.size() < kNumTopCandidates); ++j)
 					{
+						//std::cout << j << std::endl;
 						for (int k = 0; k < num_descriptors_with_hamming_distance(j) &&
 							(candidate_euclidean_distances.size() < kNumTopCandidates); ++k)
 						{
 							const int candidate_id = candidate_hamming_distances(k, j);
-							const DistanceType distance = metric(
+							//此时的matrix.data()的类型是unsigned char *
+							//descriptionsMat = mat_I.template cast<float>();
+							const DistanceType distance = computeEuclideanDistance
+															(
+																descriptions2.col(candidate_id).data(),
+																descriptions1.col(i).data(),
+																descriptions1.rows()
+															);
+							/*const DistanceType distance = metric(
 								descriptions2.row(candidate_id).data(),
 								descriptions1.row(i).data(),
-								descriptions1.cols());
+								descriptions1.cols());*/
 
 							candidate_euclidean_distances.emplace_back(distance, candidate_id);
 						}
@@ -601,6 +621,7 @@ namespace openMVG {
 					}
 					//else -> too few candidates... (save no one)
 				}
+				//std::cout << "loop over!" << std::endl;
 			}
 
 		

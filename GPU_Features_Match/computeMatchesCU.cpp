@@ -10,14 +10,16 @@
 #include "openMVG/features/feature.hpp"
 #include "openMVG/matching/indMatch.hpp"
 #include "openMVG/matching/indMatch_utils.hpp"
+
+#include "openMVG/matching/indMatchDecoratorXY.hpp"
+#include "openMVG/matching/matching_filters.hpp"
+
 #include "openMVG/matching_image_collection/Matcher_Regions.hpp"
 #include "openMVG/matching_image_collection/Cascade_Hashing_Matcher_Regions.hpp"
 #include "openMVG/matching_image_collection/GeometricFilter.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
-
 #include "openMVG/types.hpp"
-
 #include "openMVG/sfm/pipelines/sfm_regions_provider_cache.hpp"
 #include "openMVG/matching_image_collection/F_ACRobust.hpp"
 #include "openMVG/matching_image_collection/E_ACRobust.hpp"
@@ -30,7 +32,6 @@
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/stl/stl.hpp"
 #include "openMVG/system/timer.hpp"
-
 #include "third_party/cmdLine/cmdLine.h"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
@@ -4248,7 +4249,8 @@ void match_block_itself
 	// Perform matching between all the pairs
 	for (const auto & pairs : map_Pairs) 
 	{
-		const IndexT I = pairs.first;
+		int temp = (pairs.first) % 12;
+		const IndexT I = temp;
 		const std::vector<IndexT> & indexToCompare = pairs.second;
 
 		const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
@@ -4257,7 +4259,7 @@ void match_block_itself
 		const unsigned char * tabI =
 			reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 		const size_t dimension = regionsI->DescriptorLength();
-		Eigen::Map<BaseMat> mat_I((unsigned char *)tabI, regionsI->RegionCount(), dimension);
+		Eigen::Map<BaseMat> mat_I((unsigned char *)tabI, dimension, regionsI->RegionCount());
 
 		for (int j = 0; j < (int)indexToCompare.size(); ++j) 
 		{
@@ -4266,7 +4268,7 @@ void match_block_itself
 
 			// Matrix representation of the query input data;
 			const unsigned char * tabJ = reinterpret_cast<const unsigned char*>(regionsJ->DescriptorRawData());
-			Eigen::Map<BaseMat> mat_J((unsigned char*)tabJ, regionsJ->RegionCount(), dimension);
+			Eigen::Map<BaseMat> mat_J((unsigned char*)tabJ, dimension, regionsJ->RegionCount());
 
 			IndMatches pvec_indices;
 			using ResultType = typename Accumulator<unsigned char>::Type;
@@ -4275,12 +4277,57 @@ void match_block_itself
 			pvec_indices.reserve(regionsJ->RegionCount() * 2);
 
 			// Match the query descriptors to the database
+			// ResultType = float
+			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
 				hashed_base_[J], mat_J,
 				hashed_base_[I], mat_I,
 				&pvec_indices, &pvec_distances);
 
-			//未完待续
+			std::vector<int> vec_nn_ratio_idx;
+			// Filter the matches using a distance ratio test:
+			//   The probability that a match is correct is determined by taking
+			//   the ratio of distance from the closest neighbor to the distance
+			//   of the second closest.
+			float fDistRatioGPU = 0.8f;
+			matching::NNdistanceRatio(
+				pvec_distances.begin(), // distance start
+				pvec_distances.end(),   // distance end
+				2, // Number of neighbor in iterator sequence (minimum required 2)
+				vec_nn_ratio_idx, // output (indices that respect the distance Ratio)
+				Square(fDistRatioGPU));
+
+			matching::IndMatches vec_putative_matches;
+			vec_putative_matches.reserve(vec_nn_ratio_idx.size());
+			for (size_t k = 0; k < vec_nn_ratio_idx.size(); ++k)
+			{
+				const size_t index = vec_nn_ratio_idx[k];
+				vec_putative_matches.emplace_back(pvec_indices[index * 2].j_, pvec_indices[index * 2].i_);
+			}
+
+			// Remove duplicates
+			matching::IndMatch::getDeduplicated(vec_putative_matches);
+
+			// Remove matches that have the same (X,Y) coordinates
+			const std::vector<features::PointFeature> pointFeaturesJ = regionsJ->GetRegionsPositions();
+			matching::IndMatchDecorator<float> matchDeduplicator(vec_putative_matches,
+				pointFeaturesI, pointFeaturesJ);
+			matchDeduplicator.getDeduplicated(vec_putative_matches);
+
+#ifdef OPENMVG_USE_OPENMP
+#pragma omp critical
+#endif
+			{
+				if (!vec_putative_matches.empty())
+				{
+					map_PutativesMatches.insert(
+					{
+						{ I,J },
+						std::move(vec_putative_matches)
+					});
+				}
+			}
+			//++(*my_progress_bar);
 		}
 	}
 	
@@ -4385,6 +4432,17 @@ void matchForThisGroup(int firstIter, std::string matches_final_result_dir, std:
 				int startImgIndexThisBlock = 0;
 				startImgIndexThisBlock = firstIter * image_count_per_group + secondIter;
 				match_block_itself(map_PutativesMatches, *regions_provider.get(), matches_final_result_dir, filename_hash_mid_result, secondIter, startImgIndexThisBlock);
+				//本来应该存一组的结果 但是目前先测试存储一块的结果
+				//---------------------------------------
+				//-- Export putative matches
+				//---------------------------------------
+				if (!Save(map_PutativesMatches, std::string(matches_final_result_dir + "/matches.putative.bin")))
+				{
+					std::cerr
+						<< "Cannot save computed matches in: "
+						<< std::string(matches_final_result_dir + "/matches.putative.bin");
+					return;
+				}
 			}
 		}
 		std::cout << "Task (Regions Matching for group " << firstIter<< ") done in (s): " << timer.elapsed() << std::endl;
@@ -4464,7 +4522,7 @@ int computeMatches::computeMatches() {
 			return EXIT_FAILURE;
 	}
 	
-	//块内匹配
+	//组内匹配
 	for (int firstIter = 0; firstIter < group_count; firstIter++) 
 	{
 		matchForThisGroup(firstIter, matches_final_result_dir, filename_hash_mid_result);
@@ -4510,7 +4568,7 @@ int computeMatches::computeMatches() {
 						const std::string str_j_plus_1 = temp_j;
 						filename_hash_mid_result_pre = matches_final_result_dir_pre + "block_" + str_j_plus_1 + ".hash";
 
-						match_block_itself(matches_final_result_dir, filename_hash_mid_result);
+						//match_block_itself(matches_final_result_dir, filename_hash_mid_result);
 						
 					}
 					else if (secondIter > 0 && secondIter < block_count_per_group - 2) {

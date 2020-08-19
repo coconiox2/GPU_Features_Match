@@ -17,6 +17,8 @@ namespace computeMatches {
 	const int image_count_per_block = 3;
 	const int image_count_per_group = 12;
 	const int descriptionDimension = 128;
+
+
 	//Defines the path and name of the read and output files
 
 	const std::string sSfM_Data_FilenameDir_father = stlplus::folder_up(imageInputDir, 4) +
