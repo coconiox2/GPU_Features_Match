@@ -4199,71 +4199,6 @@ Pair_Set getInsideBlockPairs(int startImgIndexThisBlock)
 	return pairs;
 }
 
-void readOriginalDescriptions
-(
-	std::string matches_final_result_dir,
-
-)
-{
-	if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir))
-	{
-		std::cerr << "\nIt is an invalid output directory" << std::endl;
-		return;
-	}
-	//---------------------------------------
-	// Read SfM Scene (image view & intrinsics data)
-	//---------------------------------------
-	std::string sfm_data_filename = matches_final_result_dir + "sfm_data.json";
-	SfM_Data sfm_data;
-	if (!Load(sfm_data, sfm_data_filename, ESfM_Data(VIEWS | INTRINSICS))) {
-		std::cerr << std::endl
-			<< "The input SfM_Data file \"" << sfm_data_filename << "\" cannot be read." << std::endl;
-		return;
-	}
-	//---------------------------------------
-	// Load SfM Scene regions
-	//---------------------------------------
-	// Init the regions_type from the image describer file (used for image regions extraction)
-	using namespace openMVG::features;
-	const std::string sImage_describer = stlplus::create_filespec(matches_final_result_dir, "image_describer", "json");
-	std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
-	if (!regions_type)
-	{
-		std::cerr << "Invalid: "
-			<< sImage_describer << " regions type file." << std::endl;
-		return;
-	}
-	// Load the corresponding view regions
-	std::shared_ptr<Regions_Provider> regions_provider;
-	// Default regions provider (load & store all regions in memory)
-	regions_provider = std::make_shared<Regions_Provider>();
-	// Show the progress on the command line:
-	C_Progress_display progress;
-
-	if (!regions_provider->load(sfm_data, matches_final_result_dir, regions_type, &progress)) {
-		std::cerr << std::endl << "Invalid regions." << std::endl;
-		return;
-	}
-
-	// Build some alias from SfM_Data Views data:
-	// - List views as a vector of filenames & image sizes
-	std::vector<std::string> vec_fileNames;
-	std::vector<std::pair<size_t, size_t>> vec_imagesSize;
-	{
-		vec_fileNames.reserve(sfm_data.GetViews().size());
-		vec_imagesSize.reserve(sfm_data.GetViews().size());
-		for (Views::const_iterator iter = sfm_data.GetViews().begin();
-			iter != sfm_data.GetViews().end();
-			++iter)
-		{
-			const View * v = iter->second.get();
-			vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
-				v->s_Img_path));
-			vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
-		}
-	}
-}
-
 //¿éÄÚ×ÔÎÒÆ¥Åä
 void match_block_itself
 (
@@ -5371,3 +5306,5 @@ int computeMatches::computeMatches() {
 	std::cout << "match for all groups has done!" << std::endl;
 	return EXIT_SUCCESS;
 }
+
+void testGit(){}
