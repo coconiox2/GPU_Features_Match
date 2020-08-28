@@ -543,10 +543,22 @@ namespace openMVG {
 					for (int j = 0; j < nb_bucket_groups_; ++j)
 					{
 						const uint16_t bucket_id = hashed_desc.bucket_ids[j];
-						for (const auto& feature_id : hashed_descriptions2.buckets[j][bucket_id])
+						if ((j > hashed_descriptions2.buckets.size()-1) 
+							|| (bucket_id > hashed_descriptions2.buckets[j].size()-1))
 						{
-							candidate_descriptors.emplace_back(feature_id);
-							used_descriptor[feature_id] = false;
+							std::cout << "sss" << std::endl;
+						}
+						std::cout << "j: " << j << std::endl;
+						std::cout << "hashed_descriptions2.buckets.size(): " << hashed_descriptions2.buckets.size() << std::endl;
+						std::cout << "bucket_id: " << bucket_id << std::endl;
+						std::cout << "hashed_descriptions2.buckets[j].size(): " << hashed_descriptions2.buckets[j].size() << std::endl;
+						if (hashed_descriptions2.buckets[j][bucket_id].size()) 
+						{
+							for (const auto& feature_id : hashed_descriptions2.buckets[j][bucket_id])
+							{
+								candidate_descriptors.emplace_back(feature_id);
+								used_descriptor[feature_id] = false;
+							}
 						}
 					}
 
