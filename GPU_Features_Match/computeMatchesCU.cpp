@@ -4265,9 +4265,13 @@ void match_block_itself
 
 		for (int j = 0; j < (int)indexToCompare.size(); ++j) 
 		{
-			const size_t J = indexToCompare[j];
+			int tempJ = (indexToCompare[j]) % 12;
+			const size_t J = tempJ;
 			const std::shared_ptr<features::Regions> regionsJ = regions_provider.get(J);
-
+			if (regionsJ == nullptr) 
+			{
+				std::cout <<"sss" << std::endl;
+			}
 			// Matrix representation of the query input data;
 			const unsigned char * tabJ = reinterpret_cast<const unsigned char*>(regionsJ->DescriptorRawData());
 			Eigen::Map<BaseMat> mat_J((unsigned char*)tabJ, dimension, regionsJ->RegionCount());
@@ -4409,6 +4413,8 @@ void matchBetweenBlocksInOneGroup
 			// Match the query descriptors to the database
 			// ResultType = float
 			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+			std::cout <<"I: "<< I << std::endl;
+			std::cout <<"J: "<< J << std::endl;
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
 				hashed_base_next[J], mat_J,
 				hashed_base_[I], mat_I,
@@ -4537,6 +4543,8 @@ void matchBetweenBlocksInDiffGroups
 			// Match the query descriptors to the database
 			// ResultType = float
 			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+			/*std::cout << "I: " << I << std::endl;
+			std::cout << "J: " << J << std::endl;*/
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
 				hashed_base_next[J], mat_J,
 				hashed_base_[I], mat_I,
@@ -4692,7 +4700,7 @@ void matchForThisGroup
 					hashed_code_file_io::read_hashed_base(filename_hash_mid_result, hashed_base_);
 
 					int startImgIndexThisBlock = 0;
-					startImgIndexThisBlock = firstIter * image_count_per_group + secondIter;
+					startImgIndexThisBlock = firstIter * image_count_per_group + secondIter*image_count_per_block;
 
 					//处理好待匹配块哈希 结果文件名
 					char temp_j_next[2] = { ' ','\0' };
@@ -4704,7 +4712,7 @@ void matchForThisGroup
 					hashed_code_file_io::read_hashed_base(filename_hash_mid_result_next, hashed_base_next);
 
 					int startImgIndexThisBlockNext = 0;
-					startImgIndexThisBlockNext = firstIter * image_count_per_group + secondIterNext;
+					startImgIndexThisBlockNext = firstIter * image_count_per_group + secondIterNext*image_count_per_block;
 					matchBetweenBlocksInOneGroup(
 						map_PutativesMatches, //匹配结果
 						(*regions_provider.get()), //当前组特征描述符数据
@@ -5399,9 +5407,27 @@ int computeMatches::computeMatches() {
 			}
 			else
 			{
+				std::cout << " error indexing when matching between groups" << std::endl;
+			}
+
+			//组内自我匹配
+			// If the matches already exists, reload them
+			PairWiseMatches map_PutativesMatches_itself;
+			std::string matches_result_filaname_itself = matches_final_result_dir + "/matches.putative_itself.bin";
+			if (stlplus::file_exists(matches_result_filaname_itself))
+			{
+				if (!(Load(map_PutativesMatches_itself, matches_result_filaname_itself)))
+				{
+					std::cerr << "Cannot load input matches file";
+					return EXIT_FAILURE;
+				}
+				std::cout << "\t PREVIOUS RESULTS LOADED;"
+					<< " #pair: " << map_PutativesMatches_itself.size() << std::endl;
+			}
+			else 
+			{
 				std::cout << "match for group " << firstIter << " has done!" << std::endl;
-				//组内自我匹配
-				PairWiseMatches map_PutativesMatches_itself;
+				
 				matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
 
 				//---------------------------------------

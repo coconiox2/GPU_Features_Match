@@ -532,6 +532,7 @@ namespace openMVG {
 
 				for (int i = 0; i < hashed_descriptions1.hashed_desc.size(); ++i)
 				{
+					//std::cout << "i: " << i << std::endl;
 					candidate_descriptors.clear();
 					num_descriptors_with_hamming_distance.setZero();
 					candidate_euclidean_distances.clear();
@@ -543,16 +544,15 @@ namespace openMVG {
 					for (int j = 0; j < nb_bucket_groups_; ++j)
 					{
 						const uint16_t bucket_id = hashed_desc.bucket_ids[j];
-						if ((j > hashed_descriptions2.buckets.size()-1) 
+						/*if ((j > hashed_descriptions2.buckets.size()-1) 
 							|| (bucket_id > hashed_descriptions2.buckets[j].size()-1))
 						{
 							std::cout << "sss" << std::endl;
-						}
-						std::cout << "j: " << j << std::endl;
-						std::cout << "hashed_descriptions2.buckets.size(): " << hashed_descriptions2.buckets.size() << std::endl;
-						std::cout << "bucket_id: " << bucket_id << std::endl;
-						std::cout << "hashed_descriptions2.buckets[j].size(): " << hashed_descriptions2.buckets[j].size() << std::endl;
-						if (hashed_descriptions2.buckets[j][bucket_id].size()) 
+						}*/
+						
+						if (hashed_descriptions2.buckets.size()
+							&& hashed_descriptions2.buckets[j].size()
+							&& hashed_descriptions2.buckets[j][bucket_id].size())
 						{
 							for (const auto& feature_id : hashed_descriptions2.buckets[j][bucket_id])
 							{
@@ -602,6 +602,10 @@ namespace openMVG {
 							const int candidate_id = candidate_hamming_distances(k, j);
 							//此时的matrix.data()的类型是unsigned char *
 							//descriptionsMat = mat_I.template cast<float>();
+							if (candidate_id > descriptions2.cols() - 1 || i > descriptions1.cols() - 1) 
+							{
+								std::cout <<"sss"<< std::endl;
+							}
 							const DistanceType distance = computeEuclideanDistance
 															(
 																descriptions2.col(candidate_id).data(),
