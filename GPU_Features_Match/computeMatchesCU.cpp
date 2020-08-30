@@ -4744,7 +4744,7 @@ void matchForThisGroup
 					hashed_code_file_io::read_hashed_base(filename_hash_mid_result, hashed_base_);
 
 					int startImgIndexThisBlock = 0;
-					startImgIndexThisBlock = firstIter * image_count_per_group + secondIter;
+					startImgIndexThisBlock = firstIter * image_count_per_group + secondIter*image_count_per_block;
 					match_block_itself(map_PutativesMatches, *regions_provider.get(), matches_final_result_dir, filename_hash_mid_result, secondIter, startImgIndexThisBlock, hashed_base_);
 				}
 			}
@@ -4960,6 +4960,7 @@ void matchBetweenGroups
 
 int computeMatches::computeMatches() {
 	
+
 	//fundamental matrix
 	std::string sGeometricModel = "f";
 	//lowe's filter radio
@@ -5036,7 +5037,7 @@ int computeMatches::computeMatches() {
 
 	//在组的尺度上执行匹配
 	//这里只做第一层数据调度
-	for (int firstIter = 0; firstIter < group_count - 3; firstIter++) 
+	for (int firstIter = 0; firstIter < group_count - 2; firstIter++) 
 	{
 		//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 		char temp_firstIter[2] = { ' ','\0' };
