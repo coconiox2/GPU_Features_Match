@@ -49,8 +49,10 @@ float computeEuclideanDistance
 	cudaMemcpy(desGPU1, descriptionDataFloat1, sizeof(float) * size, cudaMemcpyHostToDevice);
 	cudaMemcpy(desGPU2, descriptionDataFloat2, sizeof(float) * size, cudaMemcpyHostToDevice);
 
-	dim3 dimBlock(size);
-	dim3 dimGrid(1);
+	/*dim3 dimBlock(size);
+	dim3 dimGrid(1);*/
+	dim3 dimBlock(1024);
+	dim3 dimGrid(256);
 
 	float *resultGPU;
 	cudaMalloc((void**)&resultGPU, sizeof(float));

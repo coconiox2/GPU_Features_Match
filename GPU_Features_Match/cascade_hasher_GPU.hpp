@@ -311,8 +311,8 @@ namespace openMVG {
 					clock_t end = clock();
 					double endtime = (double)(end - start) / CLOCKS_PER_SEC;
 
-					std::cout << "Total time:" << endtime << std::endl;		//s为单位
-					std::cout << "Total time:" << endtime * 1000 << "ms" << std::endl;	//ms为单位
+					//std::cout << "Total time:" << endtime << std::endl;		//s为单位
+					std::cout << "Task(createHashedDescriptions) cost:" << endtime * 1000 << "ms" << std::endl;	//ms为单位
 
 																						// 清理掉使用过的内存
 
@@ -604,7 +604,7 @@ namespace openMVG {
 							//descriptionsMat = mat_I.template cast<float>();
 							if (candidate_id > descriptions2.cols() - 1 || i > descriptions1.cols() - 1) 
 							{
-								std::cout <<"sss"<< std::endl;
+								std::cout <<"Error indexing when finding the candidate_id!"<< std::endl;
 							}
 							const DistanceType distance = computeEuclideanDistance
 															(

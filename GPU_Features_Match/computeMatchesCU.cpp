@@ -4,6 +4,11 @@
 #include "cascade_hasher_GPU.hpp"
 
 //openMVG
+
+#include "openMVG/image/image_io.hpp"
+#include "openMVG/image/image_concat.hpp"
+#include "openMVG/matching/svg_matches.hpp"
+
 #include "openMVG/graph/graph.hpp"
 #include "openMVG/features/akaze/image_describer_akaze.hpp"
 #include "openMVG/features/descriptor.hpp"
@@ -48,6 +53,7 @@
 #include <string>
 
 using namespace openMVG;
+using namespace openMVG::image;
 using namespace openMVG::matching;
 using namespace openMVG::robust;
 using namespace openMVG::sfm;
@@ -497,7 +503,7 @@ int computeMatches::computeHashes
 						}
 					}
 
-					std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+					std::cout << std::endl << " - COMPUTE HASH(for 1 group) - " << std::endl;
 					// If the matches already exists, reload them
 					if (!bForce
 						&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
@@ -1442,7 +1448,7 @@ int computeMatches::computeHashes
 					}
 				}
 
-				std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+				std::cout << std::endl << " - COMPUTE HASH(for 1 group) - " << std::endl;
 				// If the matches already exists, reload them
 				if (!bForce
 					&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
@@ -2379,7 +2385,7 @@ int computeMatches::computeHashes
 					}
 				}
 
-				std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+				std::cout << std::endl << " - COMPUTE HASH(for 1 group) - " << std::endl;
 				// If the matches already exists, reload them
 				if (!bForce
 					&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
@@ -3301,7 +3307,7 @@ int computeMatches::computeHashes
 					}
 				}
 
-				std::cout << std::endl << " - PUTATIVE MATCHES - " << std::endl;
+				std::cout << std::endl << " - COMPUTE HASH(for 1 group) - " << std::endl;
 				// If the matches already exists, reload them
 				if (!bForce
 					&& (stlplus::file_exists(sMatchesOutputDir_hash + "/matches.putative.txt")
@@ -4270,7 +4276,7 @@ void match_block_itself
 			const std::shared_ptr<features::Regions> regionsJ = regions_provider.get(J);
 			if (regionsJ == nullptr) 
 			{
-				std::cout <<"sss" << std::endl;
+				std::cout <<"error when --regions_provider.get(J)--" << std::endl;
 			}
 			// Matrix representation of the query input data;
 			const unsigned char * tabJ = reinterpret_cast<const unsigned char*>(regionsJ->DescriptorRawData());
@@ -4303,6 +4309,8 @@ void match_block_itself
 				vec_nn_ratio_idx, // output (indices that respect the distance Ratio)
 				Square(fDistRatioGPU));
 
+			
+
 			matching::IndMatches vec_putative_matches;
 			vec_putative_matches.reserve(vec_nn_ratio_idx.size());
 			for (size_t k = 0; k < vec_nn_ratio_idx.size(); ++k)
@@ -4319,6 +4327,31 @@ void match_block_itself
 			matching::IndMatchDecorator<float> matchDeduplicator(vec_putative_matches,
 				pointFeaturesI, pointFeaturesJ);
 			matchDeduplicator.getDeduplicated(vec_putative_matches);
+
+			//// Draw correspondences after Nearest Neighbor ratio filter
+			//{
+			//	const std::string jpg_filenameL = "E:\\/imageData/tianjin/DJI_0/DJI_0001.JPG";
+			//	const std::string jpg_filenameR = "E:\\/imageData/tianjin/DJI_0/DJI_0002.JPG";
+			//	Image<unsigned char> imageL, imageR;
+			//	ReadImage(jpg_filenameL.c_str(), &imageL);
+			//	ReadImage(jpg_filenameR.c_str(), &imageR);
+			//	assert(imageL.data() && imageR.data());
+
+			//	std::unique_ptr<features::Regions> sss;
+			//	const bool bVertical = true;
+			//	Matches2SVG
+			//	(
+			//		jpg_filenameL,
+			//		{ imageL.Width(), imageL.Height() },
+			//		regions_provider.get(0)->GetRegionsPositions(),
+			//		jpg_filenameR,
+			//		{ imageR.Width(), imageR.Height() },
+			//		regions_provider.get(1)->GetRegionsPositions(),
+			//		vec_putative_matches,
+			//		"03_Matches.svg",
+			//		bVertical
+			//	);
+			//}
 
 #ifdef OPENMVG_USE_OPENMP
 #pragma omp critical
@@ -4414,8 +4447,7 @@ void matchBetweenBlocksInOneGroup
 			// Match the query descriptors to the database
 			// ResultType = float
 			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-			std::cout <<"I: "<< I << std::endl;
-			std::cout <<"J: "<< J << std::endl;
+			
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
 				hashed_base_next[J], mat_J,
 				hashed_base_[I], mat_I,
@@ -5713,5 +5745,13 @@ int computeMatches::computeMatches() {
 	}
 
 	std::cout << "match for all groups has done!" << std::endl;
+	return EXIT_SUCCESS;
+}
+int computeMatches::showMatchesOnImage() 
+{
+	char temp_i[2] = { ' ','\0' };
+	temp_i[0] = 48;
+	const std::string str_i = temp_i;
+	std::string imageDir = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
 	return EXIT_SUCCESS;
 }

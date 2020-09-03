@@ -4,6 +4,8 @@
 
 
 #include <Eigen/Dense>
+#include <omp.h>
+#include "openMVG/system/timer.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 //#include "cascade_hasher_GPU.hpp"
@@ -13,11 +15,12 @@
 
 namespace computeMatches {
 	const int group_count = 6;
-	const int block_count_per_group = 4;
-	const int image_count_per_block = 3;
-	const int image_count_per_group = 12;
+	const int block_count_per_group = 6;
+	const int image_count_per_block = 10;
+	const int image_count_per_group = 60;
 	const int descriptionDimension = 128;
 
+	const int openmp_thread_num = omp_get_max_threads();
 
 	//Defines the path and name of the read and output files
 
@@ -107,6 +110,7 @@ namespace computeMatches {
 	*/
 	///////////////////////////
 	int computeMatches();
+	int showMatchesOnImage();
 	
 
 }//namespace computeMatches
