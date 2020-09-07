@@ -131,7 +131,10 @@ void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_desc
 			return;
 		}
 		//存储每一组内的均值
+		std::vector<Eigen::MatrixXf> matForZeroMeanVector;
+		matForZeroMeanVector.resize(image_count_per_group);
 		Eigen::MatrixXf matForZeroMean;
+#pragma omp parallel for num_threads(openmp_thread_num)
 		for (int j = 0; j < image_count_per_group; j++) {
 			const IndexT I = j;
 			const std::shared_ptr<features::Regions> regionsI = (*regions_provider.get()).get(I);
@@ -148,7 +151,7 @@ void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_desc
 			if (regionsI->RegionCount() > 0)
 			{
 				Eigen::Map<BaseMat> mat_I((unsigned char* )tabI, dimension, regionsI->RegionCount());
-				matForZeroMean.col(i) = zeroCascadeHasher.GetZeroMeanDescriptor(mat_I);
+				matForZeroMean.col(j) = zeroCascadeHasher.GetZeroMeanDescriptor(mat_I);
 			}
 		}
 		zero_descriptor.col(i) = zeroCascadeHasher.GetZeroMeanDescriptor(matForZeroMean);
@@ -4292,8 +4295,8 @@ void match_block_itself
 			// ResultType = float
 			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
-				hashed_base_[J], mat_J,
-				hashed_base_[I], mat_I,
+				hashed_base_[J % image_count_per_block], mat_J,
+				hashed_base_[I % image_count_per_block], mat_I,
 				&pvec_indices, &pvec_distances);
 
 			std::vector<int> vec_nn_ratio_idx;
@@ -4409,6 +4412,7 @@ void matchBetweenBlocksInOneGroup
 	// Perform matching between all the pairs
 	for (const auto & pairs : map_Pairs)
 	{
+		//!!!!!!!!!!!!!!
 		int tempF = (pairs.first) % image_count_per_group;
 		const IndexT I = tempF;
 
@@ -4447,10 +4451,9 @@ void matchBetweenBlocksInOneGroup
 			// Match the query descriptors to the database
 			// ResultType = float
 			// using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-			
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
-				hashed_base_next[J], mat_J,
-				hashed_base_[I], mat_I,
+				hashed_base_next[J % image_count_per_block], mat_J,
+				hashed_base_[I % image_count_per_block], mat_I,
 				&pvec_indices, &pvec_distances);
 
 			std::vector<int> vec_nn_ratio_idx;
@@ -4580,8 +4583,8 @@ void matchBetweenBlocksInDiffGroups
 			/*std::cout << "I: " << I << std::endl;
 			std::cout << "J: " << J << std::endl;*/
 			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
-				hashed_base_next[J], mat_J,
-				hashed_base_[I], mat_I,
+				hashed_base_next[J % image_count_per_block], mat_J,
+				hashed_base_[I % image_count_per_block], mat_I,
 				&pvec_indices, &pvec_distances);
 
 			std::vector<int> vec_nn_ratio_idx;
@@ -4613,6 +4616,70 @@ void matchBetweenBlocksInDiffGroups
 			matching::IndMatchDecorator<float> matchDeduplicator(vec_putative_matches,
 				pointFeaturesI, pointFeaturesJ);
 			matchDeduplicator.getDeduplicated(vec_putative_matches);
+
+			if (pairs.first == 0 && indexToCompare[j] == 16)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0001.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_2/DJI_0017.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(0)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider_next.get(16)->GetRegionsPositions(),
+						vec_putative_matches,
+						"03_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			
+
+			if (pairs.first == 28 && indexToCompare[j] == 32) 
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0029.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_2/DJI_0033.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(28)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider_next.get(32)->GetRegionsPositions(),
+						vec_putative_matches,
+						"04_Matches.svg",
+						bVertical
+					);
+				}
+			}
+
+			
+
 
 #ifdef OPENMVG_USE_OPENMP
 #pragma omp critical
@@ -5069,6 +5136,7 @@ int computeMatches::computeMatches() {
 			return EXIT_FAILURE;
 	}
 
+
 	//在组的尺度上执行匹配
 	//这里只做第一层数据调度
 	for (int firstIter = 0; firstIter < group_count - 2; firstIter++) 
@@ -5138,7 +5206,7 @@ int computeMatches::computeMatches() {
 		}
 		//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 
-		//待匹配块数据
+		//待匹配组数据
 		std::string sfm_data_filename_next;
 		SfM_Data sfm_data_next;
 		// Load the corresponding view regions
@@ -5148,7 +5216,7 @@ int computeMatches::computeMatches() {
 		std::vector<std::string> vec_fileNames_next;
 		std::vector<std::pair<size_t, size_t>> vec_imagesSize_next;
 
-		//预读块数据
+		//预读组数据
 		std::string sfm_data_filename_pre;
 		SfM_Data sfm_data_pre;
 		// Load the corresponding view regions
@@ -5161,6 +5229,7 @@ int computeMatches::computeMatches() {
 		{
 			for (int firstIterNext = firstIter + 1; firstIterNext < group_count; firstIterNext++)
 			{
+
 				if (firstIterNext == firstIter + 1)
 				{
 					//读待匹配(firstIterNext)的一组特征描述符

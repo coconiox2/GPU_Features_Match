@@ -14,10 +14,10 @@
 //using namespace openMVG::matching;
 
 namespace computeMatches {
-	const int group_count = 6;
-	const int block_count_per_group = 6;
-	const int image_count_per_block = 10;
-	const int image_count_per_group = 60;
+	const int group_count = 4;
+	const int block_count_per_group = 4;
+	const int image_count_per_block = 4;
+	const int image_count_per_group = 16;
 	const int descriptionDimension = 128;
 
 	const int openmp_thread_num = omp_get_max_threads();

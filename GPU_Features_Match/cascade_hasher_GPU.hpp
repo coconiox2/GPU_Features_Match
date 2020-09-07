@@ -556,8 +556,11 @@ namespace openMVG {
 						{
 							for (const auto& feature_id : hashed_descriptions2.buckets[j][bucket_id])
 							{
-								candidate_descriptors.emplace_back(feature_id);
-								used_descriptor[feature_id] = false;
+								if (used_descriptor.size() > feature_id + 1) 
+								{
+									candidate_descriptors.emplace_back(feature_id);
+									used_descriptor[feature_id] = false;
+								}
 							}
 						}
 					}
