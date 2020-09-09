@@ -4,10 +4,10 @@ using namespace computeMatches;
 int main(int argc, char** argv) {
 	openMVG::system::Timer computeHashTimeCost;
 
-	Eigen::VectorXf _zero_mean_descriptor;
+	/*Eigen::VectorXf _zero_mean_descriptor;
 	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor);
 	computeMatches::computeHashes(_zero_mean_descriptor);
-	std::cout << "Tasks (computing hash for all groups) cost " << computeHashTimeCost.elapsed() << "s" << std::endl;
+	std::cout << "Tasks (computing hash for all groups) cost " << computeHashTimeCost.elapsed() << "s" << std::endl;*/
 	openMVG::system::Timer computeMatchesTimeCost;
 	computeMatches::computeMatches();
 	

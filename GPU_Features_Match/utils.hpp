@@ -203,6 +203,10 @@ namespace hashed_code_file_io {
 		std::map<openMVG::IndexT, HashedDescriptions> &shashed_base_
 	)
 	{
+		std::map<openMVG::IndexT, HashedDescriptions> shashed_base_empty;
+		shashed_base_.swap(shashed_base_empty);
+		shashed_base_.clear();
+
 		ifstream in;
 		in.open(sfileNameHash, ios::in|ios::binary);
 		if (!in.is_open()) {

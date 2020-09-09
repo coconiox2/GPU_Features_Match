@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone="yes"?>
+<!-- SVG graphic -->
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'
+width="4000px" height="6000px" preserveAspectRatio="xMinYMin meet" viewBox="0 0 4000 6000" version="1.1">
+<image x="0" y="0" width="4000px" height="3000px" opacity="1" xlink:href="D:\/imageData/tianjin/DJI_0/DJI_0001.JPG"/>
+<image x="0" y="3000" width="4000px" height="3000px" opacity="1" xlink:href="D:\/imageData/tianjin/DJI_1/DJI_0006.JPG"/>
+<polyline points="1081.62,568.913,2582.69,5406.14" stroke="rgb(255,0,161)" stroke-width="2" fill="none"/>
+<polyline points="573.927,1051.71,3807.89,5536.77" stroke="rgb(255,0,68)" stroke-width="2" fill="none"/>
+<polyline points="3741.38,2041.09,262.747,4942.07" stroke="rgb(255,0,233)" stroke-width="2" fill="none"/>
+<polyline points="999.701,2699.68,2681.32,5099.13" stroke="rgb(233,255,0)" stroke-width="2" fill="none"/>
+<circle cx="1081.62" cy="568.913" r="4" stroke="rgb(255,0,161)" stroke-width="2" fill="none"/>
+<circle cx="2582.69" cy="5406.14" r="4" stroke="rgb(255,0,161)" stroke-width="2" fill="none"/>
+<circle cx="573.927" cy="1051.71" r="4" stroke="rgb(255,0,68)" stroke-width="2" fill="none"/>
+<circle cx="3807.89" cy="5536.77" r="4" stroke="rgb(255,0,68)" stroke-width="2" fill="none"/>
+<circle cx="3741.38" cy="2041.09" r="4" stroke="rgb(255,0,233)" stroke-width="2" fill="none"/>
+<circle cx="262.747" cy="4942.07" r="4" stroke="rgb(255,0,233)" stroke-width="2" fill="none"/>
+<circle cx="999.701" cy="2699.68" r="4" stroke="rgb(233,255,0)" stroke-width="2" fill="none"/>
+<circle cx="2681.32" cy="5099.13" r="4" stroke="rgb(233,255,0)" stroke-width="2" fill="none"/>
+</svg>

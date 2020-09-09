@@ -287,7 +287,7 @@ int computeMatches::computeHashes
 	//fundamental matrix
 	std::string sGeometricModel = "f";
 	//lowe's filter radio
-	float fDistRatio = 0.8f;
+	float fDistRatio = 0.6f;
 	int iMatchingVideoMode = -1;
 	std::string sPredefinedPairList = "";
 	std::string sNearestMatchingMethod = "AUTO";
@@ -4304,7 +4304,7 @@ void match_block_itself
 			//   The probability that a match is correct is determined by taking
 			//   the ratio of distance from the closest neighbor to the distance
 			//   of the second closest.
-			float fDistRatioGPU = 0.8f;
+			float fDistRatioGPU = 0.6f;
 			matching::NNdistanceRatio(
 				pvec_distances.begin(), // distance start
 				pvec_distances.end(),   // distance end
@@ -4419,7 +4419,7 @@ void matchBetweenBlocksInOneGroup
 		std::vector<IndexT> tempS;
 		tempS.resize(pairs.second.size());
 		for (int i = 0; i < pairs.second.size(); i++) {
-			int temp = (pairs.second[i]) % image_count_per_group;
+			int temp = (pairs.second[i]);
 			tempS[i] = temp;
 		}
 		const std::vector<IndexT> & indexToCompare = tempS;
@@ -4461,7 +4461,7 @@ void matchBetweenBlocksInOneGroup
 			//   The probability that a match is correct is determined by taking
 			//   the ratio of distance from the closest neighbor to the distance
 			//   of the second closest.
-			float fDistRatioGPU = 0.8f;
+			float fDistRatioGPU = 0.6f;
 			matching::NNdistanceRatio(
 				pvec_distances.begin(), // distance start
 				pvec_distances.end(),   // distance end
@@ -4485,6 +4485,153 @@ void matchBetweenBlocksInOneGroup
 			matching::IndMatchDecorator<float> matchDeduplicator(vec_putative_matches,
 				pointFeaturesI, pointFeaturesJ);
 			matchDeduplicator.getDeduplicated(vec_putative_matches);
+
+			if (pairs.first == 0 && indexToCompare[j] == 1)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0001.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0002.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(0)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider.get(1)->GetRegionsPositions(),
+						vec_putative_matches,
+						"12_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			if (pairs.first == 1 && indexToCompare[j] == 2)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0002.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0003.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(1)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider.get(2)->GetRegionsPositions(),
+						vec_putative_matches,
+						"23_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			if (pairs.first == 0 && indexToCompare[j] == 3)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0001.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0004.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(0)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider.get(3)->GetRegionsPositions(),
+						vec_putative_matches,
+						"14_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			if (pairs.first == 4 && indexToCompare[j] == 5)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0005.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0006.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(0)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider.get(1)->GetRegionsPositions(),
+						vec_putative_matches,
+						"56_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			if (pairs.first == 6 && indexToCompare[j] == 7)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0007.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0008.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(2)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider.get(3)->GetRegionsPositions(),
+						vec_putative_matches,
+						"78_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			
 
 #ifdef OPENMVG_USE_OPENMP
 #pragma omp critical
@@ -4548,7 +4695,7 @@ void matchBetweenBlocksInDiffGroups
 		std::vector<IndexT> tempS;
 		tempS.resize(pairs.second.size());
 		for (int i = 0; i < pairs.second.size(); i++) {
-			int temp = (pairs.second[i]) % image_count_per_group;
+			int temp = (pairs.second[i]);
 			tempS[i] = temp;
 		}
 		const std::vector<IndexT> & indexToCompare = tempS;
@@ -4592,7 +4739,7 @@ void matchBetweenBlocksInDiffGroups
 			//   The probability that a match is correct is determined by taking
 			//   the ratio of distance from the closest neighbor to the distance
 			//   of the second closest.
-			float fDistRatioGPU = 0.8f;
+			float fDistRatioGPU = 0.6f;
 			matching::NNdistanceRatio(
 				pvec_distances.begin(), // distance start
 				pvec_distances.end(),   // distance end
@@ -4617,14 +4764,14 @@ void matchBetweenBlocksInDiffGroups
 				pointFeaturesI, pointFeaturesJ);
 			matchDeduplicator.getDeduplicated(vec_putative_matches);
 
-			if (pairs.first == 0 && indexToCompare[j] == 16)
+			if (pairs.first == 0 && indexToCompare[j] == 4)
 			{
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0001.JPG";
+						+ "DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_2/DJI_0017.JPG";
+						+ "DJI_1/DJI_0005.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4639,23 +4786,22 @@ void matchBetweenBlocksInDiffGroups
 						regions_provider.get(0)->GetRegionsPositions(),
 						jpg_filenameR,
 						{ imageR.Width(), imageR.Height() },
-						regions_provider_next.get(16)->GetRegionsPositions(),
+						regions_provider_next.get(0)->GetRegionsPositions(),
 						vec_putative_matches,
-						"03_Matches.svg",
+						"15_Matches.svg",
 						bVertical
 					);
 				}
 			}
-			
 
-			if (pairs.first == 28 && indexToCompare[j] == 32) 
+			if (pairs.first == 0 && indexToCompare[j] == 5) 
 			{
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
-					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0029.JPG";
+	               	const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_2/DJI_0033.JPG";
+						+ "DJI_1/DJI_0006.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4667,12 +4813,71 @@ void matchBetweenBlocksInDiffGroups
 					(
 						jpg_filenameL,
 						{ imageL.Width(), imageL.Height() },
-						regions_provider.get(28)->GetRegionsPositions(),
+						regions_provider.get(0)->GetRegionsPositions(),
 						jpg_filenameR,
 						{ imageR.Width(), imageR.Height() },
-						regions_provider_next.get(32)->GetRegionsPositions(),
+						regions_provider_next.get(1)->GetRegionsPositions(),
 						vec_putative_matches,
-						"04_Matches.svg",
+						"16_Matches.svg",
+						bVertical
+					);
+				}
+			}
+			if (pairs.first == 1 && indexToCompare[j] == 4)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0002.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0005.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(1)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider_next.get(0)->GetRegionsPositions(),
+						vec_putative_matches,
+						"25_Matches.svg",
+						bVertical
+					);
+				}
+			}
+
+			if (pairs.first == 1 && indexToCompare[j] == 7)
+			{
+				// Draw correspondences after Nearest Neighbor ratio filter
+				{
+					const string jpg_filenameL = sSfM_Data_FilenameDir_father
+						+ "DJI_0/DJI_0002.JPG";
+					const string jpg_filenameR = sSfM_Data_FilenameDir_father
+						+ "DJI_1/DJI_0008.JPG";
+
+					Image<unsigned char> imageL, imageR;
+					ReadImage(jpg_filenameL.c_str(), &imageL);
+					ReadImage(jpg_filenameR.c_str(), &imageR);
+					assert(imageL.data() && imageR.data());
+
+					const bool bVertical = true;
+					Matches2SVG
+					(
+						jpg_filenameL,
+						{ imageL.Width(), imageL.Height() },
+						regions_provider.get(1)->GetRegionsPositions(),
+						jpg_filenameR,
+						{ imageR.Width(), imageR.Height() },
+						regions_provider_next.get(3)->GetRegionsPositions(),
+						vec_putative_matches,
+						"28_Matches.svg",
 						bVertical
 					);
 				}
@@ -4725,64 +4930,65 @@ void matchForThisGroup
 	}
 	else 
 	{
-		////读取一整组的特征描述符数据
-		if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir))
-		{
-			std::cerr << "\nIt is an invalid output directory" << std::endl;
-			return;
-		}
-		//---------------------------------------
-		// Read SfM Scene (image view & intrinsics data)
-		//---------------------------------------
-		std::string sfm_data_filename = matches_final_result_dir + "sfm_data.json";
-		SfM_Data sfm_data;
-		if (!Load(sfm_data, sfm_data_filename, ESfM_Data(VIEWS | INTRINSICS))) {
-			std::cerr << std::endl
-				<< "The input SfM_Data file \"" << sfm_data_filename << "\" cannot be read." << std::endl;
-			return;
-		}
-		//---------------------------------------
-		// Load SfM Scene regions
-		//---------------------------------------
-		// Init the regions_type from the image describer file (used for image regions extraction)
-		using namespace openMVG::features;
-		const std::string sImage_describer = stlplus::create_filespec(matches_final_result_dir, "image_describer", "json");
-		std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
-		if (!regions_type)
-		{
-			std::cerr << "Invalid: "
-				<< sImage_describer << " regions type file." << std::endl;
-			return;
-		}
-		// Load the corresponding view regions
-		std::shared_ptr<Regions_Provider> regions_provider;
-		// Default regions provider (load & store all regions in memory)
-		regions_provider = std::make_shared<Regions_Provider>();
-		// Show the progress on the command line:
-		C_Progress_display progress;
+		system::Timer matchItselfCost;
+		//////读取一整组的特征描述符数据
+		//if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir))
+		//{
+		//	std::cerr << "\nIt is an invalid output directory" << std::endl;
+		//	return;
+		//}
+		////---------------------------------------
+		//// Read SfM Scene (image view & intrinsics data)
+		////---------------------------------------
+		//std::string sfm_data_filename = matches_final_result_dir + "sfm_data.json";
+		//SfM_Data sfm_data;
+		//if (!Load(sfm_data, sfm_data_filename, ESfM_Data(VIEWS | INTRINSICS))) {
+		//	std::cerr << std::endl
+		//		<< "The input SfM_Data file \"" << sfm_data_filename << "\" cannot be read." << std::endl;
+		//	return;
+		//}
+		////---------------------------------------
+		//// Load SfM Scene regions
+		////---------------------------------------
+		//// Init the regions_type from the image describer file (used for image regions extraction)
+		//using namespace openMVG::features;
+		//const std::string sImage_describer = stlplus::create_filespec(matches_final_result_dir, "image_describer", "json");
+		//std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
+		//if (!regions_type)
+		//{
+		//	std::cerr << "Invalid: "
+		//		<< sImage_describer << " regions type file." << std::endl;
+		//	return;
+		//}
+		//// Load the corresponding view regions
+		//std::shared_ptr<Regions_Provider> regions_provider;
+		//// Default regions provider (load & store all regions in memory)
+		//regions_provider = std::make_shared<Regions_Provider>();
+		//// Show the progress on the command line:
+		//C_Progress_display progress;
 
-		if (!regions_provider->load(sfm_data, matches_final_result_dir, regions_type, &progress)) {
-			std::cerr << std::endl << "Invalid regions." << std::endl;
-			return;
-		}
+		//if (!regions_provider->load(sfm_data, matches_final_result_dir, regions_type, &progress)) {
+		//	std::cerr << std::endl << "Invalid regions." << std::endl;
+		//	return;
+		//}
 
-		// Build some alias from SfM_Data Views data:
-		// - List views as a vector of filenames & image sizes
-		std::vector<std::string> vec_fileNames;
-		std::vector<std::pair<size_t, size_t>> vec_imagesSize;
-		{
-			vec_fileNames.reserve(sfm_data.GetViews().size());
-			vec_imagesSize.reserve(sfm_data.GetViews().size());
-			for (Views::const_iterator iter = sfm_data.GetViews().begin();
-				iter != sfm_data.GetViews().end();
-				++iter)
-			{
-				const View * v = iter->second.get();
-				vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
-					v->s_Img_path));
-				vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
-			}
-		}
+		//// Build some alias from SfM_Data Views data:
+		//// - List views as a vector of filenames & image sizes
+		//std::vector<std::string> vec_fileNames;
+		//std::vector<std::pair<size_t, size_t>> vec_imagesSize;
+		//{
+		//	vec_fileNames.reserve(sfm_data.GetViews().size());
+		//	vec_imagesSize.reserve(sfm_data.GetViews().size());
+		//	for (Views::const_iterator iter = sfm_data.GetViews().begin();
+		//		iter != sfm_data.GetViews().end();
+		//		++iter)
+		//	{
+		//		const View * v = iter->second.get();
+		//		vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
+		//			v->s_Img_path));
+		//		vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
+		//	}
+		//}
 		std::cout << std::endl << " - PUTATIVE MATCHES FOR GROUP" << firstIter << " ITSELF- " << std::endl;
 		//块之间进行匹配
 		{
@@ -4816,7 +5022,7 @@ void matchForThisGroup
 					startImgIndexThisBlockNext = firstIter * image_count_per_group + secondIterNext*image_count_per_block;
 					matchBetweenBlocksInOneGroup(
 						map_PutativesMatches, //匹配结果
-						(*regions_provider.get()), //当前组特征描述符数据
+						regions_provider, //当前组特征描述符数据
 						hashed_base_,//每块hash结果数据
 						hashed_base_next,//待匹配的hash结果数据
 						secondIter,//第一块编号
@@ -4831,7 +5037,6 @@ void matchForThisGroup
 		{
 			std::cout << std::endl << " - PUTATIVE MATCHES INSIDE BLOCKS - " << std::endl;
 			// Perform the matching
-			system::Timer timer;
 			{
 				for (int secondIter = 0; secondIter < block_count_per_group; secondIter++)
 				{
@@ -4846,12 +5051,11 @@ void matchForThisGroup
 
 					int startImgIndexThisBlock = 0;
 					startImgIndexThisBlock = firstIter * image_count_per_group + secondIter*image_count_per_block;
-					match_block_itself(map_PutativesMatches, *regions_provider.get(), matches_final_result_dir, filename_hash_mid_result, secondIter, startImgIndexThisBlock, hashed_base_);
+					match_block_itself(map_PutativesMatches, regions_provider, matches_final_result_dir, filename_hash_mid_result, secondIter, startImgIndexThisBlock, hashed_base_);
 				}
 			}
-			std::cout << "Task (Regions Matching for group " << firstIter << ") done in (s): " << timer.elapsed() << std::endl;
 		}
-
+		std::cout << "Task (Regions Matching for group[itself] " << firstIter << ") done in (s): " << matchItselfCost.elapsed() << std::endl;
 		//先过滤？
 	}
 }
@@ -4864,10 +5068,11 @@ void matchBetweenGroups
 	int firstIterNext,
 	std::string matches_final_result_dir,
 	std::string matches_final_result_dir_next,
-	std::shared_ptr<Regions_Provider> regions_provider,
-	std::shared_ptr<Regions_Provider> regions_provider_next
+	const sfm::Regions_Provider & regions_provider,
+	const sfm::Regions_Provider & regions_provider_next
 )
 {
+	system::Timer betweenGroupTimeCost;
 	//开始匹配
 	std::cout << std::endl << " - PUTATIVE MATCHES FOR GROUP " << firstIter << " BETWEEN GROUP " << firstIterNext << std::endl;
 
@@ -4895,6 +5100,7 @@ void matchBetweenGroups
 	std::map<openMVG::IndexT, HashedDescriptions> hashed_base_;
 	std::map<openMVG::IndexT, HashedDescriptions> hashed_base_next;
 	std::map<openMVG::IndexT, HashedDescriptions> hashed_base_pre;
+	std::map<openMVG::IndexT, HashedDescriptions> hashed_base_empty;
 
 	int startIndexThisGroup = firstIter * image_count_per_group;
 	int startIndexThisGroupNext = firstIterNext * image_count_per_group;
@@ -4956,8 +5162,8 @@ void matchBetweenGroups
 					matchBetweenBlocksInDiffGroups
 					(
 						map_PutativesMatches,//存储匹配结果
-						*regions_provider.get(),//第一组图像的特征描述符指针
-						*regions_provider_next.get(),//待匹配组图像的特征描述符指针
+						regions_provider,//第一组图像的特征描述符指针
+						regions_provider_next,//待匹配组图像的特征描述符指针
 						hashed_base_, //第一块哈希结果
 						hashed_base_next, //待匹配块的哈希结果
 						thisGroupBlockIndex,//第一块编号 
@@ -4966,7 +5172,10 @@ void matchBetweenGroups
 						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
-					hashed_base_next = hashed_base_pre;
+					//hashed_base_next = hashed_base_pre;
+					hashed_base_next.swap(hashed_base_pre);
+					hashed_base_pre.swap(hashed_base_empty);
+					hashed_base_pre.clear();
 					//记得更新startIndexThisGroupNext
 					//再预读进来一块(nextGroupBlockIndex+2)新的哈希数据
 					temp_pre[0] = nextGroupBlockIndex + 2 + 48;
@@ -4981,8 +5190,8 @@ void matchBetweenGroups
 					matchBetweenBlocksInDiffGroups
 					(
 						map_PutativesMatches,//存储匹配结果
-						*regions_provider.get(),//第一组图像的特征描述符指针
-						*regions_provider_next.get(),//待匹配组图像的特征描述符指针
+						regions_provider,//第一组图像的特征描述符指针
+						regions_provider_next,//待匹配组图像的特征描述符指针
 						hashed_base_, //第一块哈希结果
 						hashed_base_next, //待匹配块的哈希结果
 						thisGroupBlockIndex,//第一块编号 
@@ -4991,7 +5200,10 @@ void matchBetweenGroups
 						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
-					hashed_base_next = hashed_base_pre;
+					//hashed_base_next = hashed_base_pre;
+					hashed_base_next.swap(hashed_base_pre);
+					hashed_base_pre.swap(hashed_base_empty);
+					hashed_base_pre.clear();
 					//记得更新startIndexThisGroupNext
 					//再预读进来一块(nextGroupBlockIndex+2)新的哈希数据
 					char temp_pre[2] = { ' ','\0' };
@@ -5008,8 +5220,8 @@ void matchBetweenGroups
 					matchBetweenBlocksInDiffGroups
 					(
 						map_PutativesMatches,//存储匹配结果
-						*regions_provider.get(),//第一组图像的特征描述符指针
-						*regions_provider_next.get(),//待匹配组图像的特征描述符指针
+						regions_provider,//第一组图像的特征描述符指针
+						regions_provider_next,//待匹配组图像的特征描述符指针
 						hashed_base_, //第一块哈希结果
 						hashed_base_next, //待匹配块的哈希结果
 						thisGroupBlockIndex,//第一块编号 
@@ -5018,15 +5230,20 @@ void matchBetweenGroups
 						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
-					hashed_base_next = hashed_base_pre;
+					
+					hashed_base_next.swap(hashed_base_pre);
+					hashed_base_pre.swap(hashed_base_empty);
+					hashed_base_pre.clear();
+
+					//hashed_base_next = hashed_base_pre;
 					//记得更新一些数值
 					nextGroupBlockIndex++;
 					//第一个块和最后一个块执行匹配
 					matchBetweenBlocksInDiffGroups
 					(
 						map_PutativesMatches,//存储匹配结果
-						*regions_provider.get(),//第一组图像的特征描述符指针
-						*regions_provider_next.get(),//待匹配组图像的特征描述符指针
+						regions_provider,//第一组图像的特征描述符指针
+						regions_provider_next,//待匹配组图像的特征描述符指针
 						hashed_base_, //第一块哈希结果
 						hashed_base_next, //待匹配块的哈希结果
 						thisGroupBlockIndex,//第一块编号 
@@ -5039,7 +5256,10 @@ void matchBetweenGroups
 				{
 					std::cout <<"match for block " << thisGroupBlockIndex <<"between block " << nextGroupBlockIndex << std::endl;
 				}
+				
 			}
+			hashed_base_.swap(hashed_base_empty);
+			hashed_base_.clear();
 		}
 
 		//---------------------------------------
@@ -5052,6 +5272,8 @@ void matchBetweenGroups
 				<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
 			return;
 		}
+		std::cout << "match for group " << firstIter << "between group " << firstIterNext 
+			<< "has done in " << betweenGroupTimeCost.elapsed() << "s" << std::endl;
 	}
 }
 	
@@ -5065,7 +5287,7 @@ int computeMatches::computeMatches() {
 	//fundamental matrix
 	std::string sGeometricModel = "f";
 	//lowe's filter radio
-	float fDistRatio = 0.8f;
+	float fDistRatio = 0.6f;
 	int iMatchingVideoMode = -1;
 	std::string sPredefinedPairList = "";
 	std::string sNearestMatchingMethod = "AUTO";
@@ -5137,6 +5359,7 @@ int computeMatches::computeMatches() {
 	}
 
 
+
 	//在组的尺度上执行匹配
 	//这里只做第一层数据调度
 	for (int firstIter = 0; firstIter < group_count - 2; firstIter++) 
@@ -5187,23 +5410,23 @@ int computeMatches::computeMatches() {
 			return EXIT_FAILURE;
 		}
 
-		// Build some alias from SfM_Data Views data:
-		// - List views as a vector of filenames & image sizes
-		std::vector<std::string> vec_fileNames; 
-		std::vector<std::pair<size_t, size_t>> vec_imagesSize;
-		{
-			vec_fileNames.reserve(sfm_data.GetViews().size());
-			vec_imagesSize.reserve(sfm_data.GetViews().size());
-			for (Views::const_iterator iter = sfm_data.GetViews().begin();
-				iter != sfm_data.GetViews().end();
-				++iter)
-			{
-				const View * v = iter->second.get();
-				vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
-					v->s_Img_path));
-				vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
-			}
-		}
+		//// Build some alias from SfM_Data Views data:
+		//// - List views as a vector of filenames & image sizes
+		//std::vector<std::string> vec_fileNames; 
+		//std::vector<std::pair<size_t, size_t>> vec_imagesSize;
+		//{
+		//	vec_fileNames.reserve(sfm_data.GetViews().size());
+		//	vec_imagesSize.reserve(sfm_data.GetViews().size());
+		//	for (Views::const_iterator iter = sfm_data.GetViews().begin();
+		//		iter != sfm_data.GetViews().end();
+		//		++iter)
+		//	{
+		//		const View * v = iter->second.get();
+		//		vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
+		//			v->s_Img_path));
+		//		vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
+		//	}
+		//}
 		//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 
 		//待匹配组数据
@@ -5225,11 +5448,41 @@ int computeMatches::computeMatches() {
 		C_Progress_display progress_pre;
 		std::vector<std::string> vec_fileNames_pre;
 		std::vector<std::pair<size_t, size_t>> vec_imagesSize_pre;
+
 		if (firstIter < group_count - 3) 
 		{
+			////组内自我匹配
+			//// If the matches already exists, reload them
+			//PairWiseMatches map_PutativesMatches_itself;
+			//std::string matches_result_filaname_itself = matches_final_result_dir + "/matches.putative_itself.bin";
+			//if (stlplus::file_exists(matches_result_filaname_itself))
+			//{
+			//	if (!(Load(map_PutativesMatches_itself, matches_result_filaname_itself)))
+			//	{
+			//		std::cerr << "Cannot load input matches file";
+			//		return EXIT_FAILURE;
+			//	}
+			//	std::cout << "\t PREVIOUS RESULTS LOADED;"
+			//		<< " #pair: " << map_PutativesMatches_itself.size() << std::endl;
+			//}
+			//else
+			//{
+
+
+			//	matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
+			//	//---------------------------------------
+			//	//-- Export putative matches
+			//	//---------------------------------------
+			//	if (!Save(map_PutativesMatches_itself, std::string(matches_final_result_dir + "/matches.putative_itself.bin")))
+			//	{
+			//		std::cerr
+			//			<< "Cannot save computed matches in: "
+			//			<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
+			//		return EXIT_FAILURE;
+			//	}
+			//}
 			for (int firstIterNext = firstIter + 1; firstIterNext < group_count; firstIterNext++)
 			{
-
 				if (firstIterNext == firstIter + 1)
 				{
 					//读待匹配(firstIterNext)的一组特征描述符
@@ -5258,29 +5511,41 @@ int computeMatches::computeMatches() {
 					//---------------------------------------
 					// Init the regions_type from the image describer file (used for image regions extraction)
 					using namespace openMVG::features;
+					const std::string sImage_describer_next = stlplus::create_filespec(matches_final_result_dir_next, "image_describer", "json");
+					std::unique_ptr<Regions> regions_type_next = Init_region_type_from_file(sImage_describer_next);
+					if (!regions_type_next)
+					{
+						std::cerr << "Invalid: "
+							<< sImage_describer_next << " regions type file." << std::endl;
+						return EXIT_FAILURE;
+					}
+
+					using namespace openMVG::features;
 					// Default regions provider (load & store all regions in memory)
 					regions_provider_next = std::make_shared<Regions_Provider>();
 
-					if (!regions_provider_next->load(sfm_data_next, matches_final_result_dir_next, regions_type, &progress_next)) {
+
+
+					if (!regions_provider_next->load(sfm_data_next, matches_final_result_dir_next, regions_type_next, &progress_next)) {
 						std::cerr << std::endl << "Invalid regions." << std::endl;
 						return EXIT_FAILURE;
 					}
 
-					// Build some alias from SfM_Data Views data:
-					// - List views as a vector of filenames & image sizes
-					{
-						vec_fileNames_next.reserve(sfm_data_next.GetViews().size());
-						vec_imagesSize_next.reserve(sfm_data_next.GetViews().size());
-						for (Views::const_iterator iter = sfm_data_next.GetViews().begin();
-							iter != sfm_data_next.GetViews().end();
-							++iter)
-						{
-							const View * v = iter->second.get();
-							vec_fileNames_next.push_back(stlplus::create_filespec(sfm_data_next.s_root_path,
-								v->s_Img_path));
-							vec_imagesSize_next.push_back(std::make_pair(v->ui_width, v->ui_height));
-						}
-					}
+					//// Build some alias from SfM_Data Views data:
+					//// - List views as a vector of filenames & image sizes
+					//{
+					//	vec_fileNames_next.reserve(sfm_data_next.GetViews().size());
+					//	vec_imagesSize_next.reserve(sfm_data_next.GetViews().size());
+					//	for (Views::const_iterator iter = sfm_data_next.GetViews().begin();
+					//		iter != sfm_data_next.GetViews().end();
+					//		++iter)
+					//	{
+					//		const View * v = iter->second.get();
+					//		vec_fileNames_next.push_back(stlplus::create_filespec(sfm_data_next.s_root_path,
+					//			v->s_Img_path));
+					//		vec_imagesSize_next.push_back(std::make_pair(v->ui_width, v->ui_height));
+					//	}
+					//}
 					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 
 					//读预读组(firstIterNext+1)的特征描述符数据
@@ -5309,29 +5574,37 @@ int computeMatches::computeMatches() {
 					//---------------------------------------
 					// Init the regions_type from the image describer file (used for image regions extraction)
 					using namespace openMVG::features;
+					const std::string sImage_describer_pre = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+					std::unique_ptr<Regions> regions_type_pre = Init_region_type_from_file(sImage_describer_pre);
+					if (!regions_type_pre)
+					{
+						std::cerr << "Invalid: "
+							<< sImage_describer_pre << " regions type file." << std::endl;
+						return EXIT_FAILURE;
+					}
 					// Default regions provider (load & store all regions in memory)
 					regions_provider_pre = std::make_shared<Regions_Provider>();
 
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type, &progress_pre)) {
+					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre, &progress_pre)) {
 						std::cerr << "Invalid regions." << std::endl;
 						return EXIT_FAILURE;
 					}
 
-					// Build some alias from SfM_Data Views data:
-					// - List views as a vector of filenames & image sizes
-					{
-						vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
-						vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
-						for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
-							iter != sfm_data_pre.GetViews().end();
-							++iter)
-						{
-							const View * v = iter->second.get();
-							vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
-								v->s_Img_path));
-							vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
-						}
-					}
+					//// Build some alias from SfM_Data Views data:
+					//// - List views as a vector of filenames & image sizes
+					//{
+					//	vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
+					//	vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
+					//	for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
+					//		iter != sfm_data_pre.GetViews().end();
+					//		++iter)
+					//	{
+					//		const View * v = iter->second.get();
+					//		vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
+					//			v->s_Img_path));
+					//		vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+					//	}
+					//}
 					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 
 					matchBetweenGroups
@@ -5340,14 +5613,14 @@ int computeMatches::computeMatches() {
 						firstIterNext,
 						matches_final_result_dir,
 						matches_final_result_dir_next,
-						regions_provider,
-						regions_provider_next
+						*regions_provider.get(),
+						*regions_provider_next.get()
 					);
 					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
 					matches_final_result_dir_next = matches_final_result_dir_pre;
 					regions_provider_next = regions_provider_pre;
-					vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;
+					/*vec_fileNames_next = vec_fileNames_pre;
+					vec_imagesSize_next = vec_imagesSize_pre;*/
 
 					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 					//char temp_firstIterPre[2] = { ' ','\0' };
@@ -5375,6 +5648,14 @@ int computeMatches::computeMatches() {
 					//---------------------------------------
 					// Init the regions_type from the image describer file (used for image regions extraction)
 					using namespace openMVG::features;
+					const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+					std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
+					if (!regions_type_pre_temp)
+					{
+						std::cerr << "Invalid: "
+							<< sImage_describer_pre_temp << " regions type file." << std::endl;
+						return EXIT_FAILURE;
+					}
 					// Load the corresponding view regions
 					//std::shared_ptr<Regions_Provider> regions_provider_pre;
 					// Default regions provider (load & store all regions in memory)
@@ -5382,7 +5663,7 @@ int computeMatches::computeMatches() {
 					// Show the progress on the command line:
 					//C_Progress_display progress_pre;
 
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type, &progress_pre)) {
+					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
 						std::cerr << "Invalid regions." << std::endl;
 						return EXIT_FAILURE;
 					}
@@ -5414,14 +5695,14 @@ int computeMatches::computeMatches() {
 						firstIterNext,
 						matches_final_result_dir,
 						matches_final_result_dir_next,
-						regions_provider,
-						regions_provider_next
+						*regions_provider.get(),
+						*regions_provider_next.get()
 					);
 					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
 					matches_final_result_dir_next = matches_final_result_dir_pre;
 					regions_provider_next = regions_provider_pre;
-					vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;
+					/*vec_fileNames_next = vec_fileNames_pre;
+					vec_imagesSize_next = vec_imagesSize_pre;*/
 
 					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
 					char temp_firstIterPre[2] = { ' ','\0' };
@@ -5449,14 +5730,23 @@ int computeMatches::computeMatches() {
 					//---------------------------------------
 					// Init the regions_type from the image describer file (used for image regions extraction)
 					using namespace openMVG::features;
+					const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+					std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
+					if (!regions_type_pre_temp)
+					{
+						std::cerr << "Invalid: "
+							<< sImage_describer_pre_temp << " regions type file." << std::endl;
+						return EXIT_FAILURE;
+					}
 					// Load the corresponding view regions
 					//std::shared_ptr<Regions_Provider> regions_provider_pre;
 					// Default regions provider (load & store all regions in memory)
+
 					regions_provider_pre = std::make_shared<Regions_Provider>();
 					// Show the progress on the command line:
 					//C_Progress_display progress_pre;
 
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type, &progress_pre)) {
+					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
 						std::cerr << "Invalid regions." << std::endl;
 						return EXIT_FAILURE;
 					}
@@ -5489,14 +5779,14 @@ int computeMatches::computeMatches() {
 						firstIterNext,
 						matches_final_result_dir,
 						matches_final_result_dir_next,
-						regions_provider,
-						regions_provider_next
+						*regions_provider.get(),
+						*regions_provider_next.get()
 					);
 					//预读组数据赋值给待匹配组数据
 					matches_final_result_dir_next = matches_final_result_dir_pre;
 					regions_provider_next = regions_provider_pre;
-					vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;
+					/*vec_fileNames_next = vec_fileNames_pre;
+					vec_imagesSize_next = vec_imagesSize_pre;*/
 					//记得更新一些值
 					firstIterNext++;
 					//第一组和待匹配组进行匹配 matchBetweenGroups();
@@ -5506,8 +5796,8 @@ int computeMatches::computeMatches() {
 						firstIterNext,
 						matches_final_result_dir,
 						matches_final_result_dir_next,
-						regions_provider,
-						regions_provider_next
+						*regions_provider.get(),
+						*regions_provider_next.get()
 					);
 				}
 				else
@@ -5531,10 +5821,9 @@ int computeMatches::computeMatches() {
 				}
 				else
 				{
-					std::cout << "match for group " << firstIter << " has done!" << std::endl;
+					
 
 					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
-
 					//---------------------------------------
 					//-- Export putative matches
 					//---------------------------------------
@@ -5545,13 +5834,41 @@ int computeMatches::computeMatches() {
 							<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
 						return EXIT_FAILURE;
 					}
-
-					std::cout << "match for group " << firstIter << " itself has done!" << std::endl;
 				}
 			}
 		}
 		else if(firstIter == group_count - 3)
 		{
+			////组内自我匹配
+			//// If the matches already exists, reload them
+			//PairWiseMatches map_PutativesMatches_itself;
+			//std::string matches_result_filaname_itself = matches_final_result_dir + "/matches.putative_itself.bin";
+			//if (stlplus::file_exists(matches_result_filaname_itself))
+			//{
+			//	if (!(Load(map_PutativesMatches_itself, matches_result_filaname_itself)))
+			//	{
+			//		std::cerr << "Cannot load input matches file";
+			//		return EXIT_FAILURE;
+			//	}
+			//	std::cout << "\t PREVIOUS RESULTS LOADED;"
+			//		<< " #pair: " << map_PutativesMatches_itself.size() << std::endl;
+			//}
+			//else
+			//{
+
+
+			//	matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
+			//	//---------------------------------------
+			//	//-- Export putative matches
+			//	//---------------------------------------
+			//	if (!Save(map_PutativesMatches_itself, std::string(matches_final_result_dir + "/matches.putative_itself.bin")))
+			//	{
+			//		std::cerr
+			//			<< "Cannot save computed matches in: "
+			//			<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
+			//		return EXIT_FAILURE;
+			//	}
+			//}
 			int firstIterNext = firstIter + 1;
 			//读待匹配(firstIterNext)的一组特征描述符
 			//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
@@ -5661,8 +5978,8 @@ int computeMatches::computeMatches() {
 				firstIterNext,
 				matches_final_result_dir,
 				matches_final_result_dir_next,
-				regions_provider,
-				regions_provider_next
+				*regions_provider.get(),
+				*regions_provider_next.get()
 			);
 			//最后两组数据匹配
 			matchBetweenGroups
@@ -5671,8 +5988,8 @@ int computeMatches::computeMatches() {
 				firstIterNext+1,
 				matches_final_result_dir_next,
 				matches_final_result_dir_pre,
-				regions_provider_next,
-				regions_provider_pre
+				*regions_provider_next.get(),
+				*regions_provider_pre.get()
 			);
 			//最后三组
 			//firstIter
@@ -5697,7 +6014,7 @@ int computeMatches::computeMatches() {
 				}
 				else
 				{
-					std::cout << "match for group " << firstIter << " has done!" << std::endl;
+					
 
 					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
 
@@ -5734,7 +6051,6 @@ int computeMatches::computeMatches() {
 				}
 				else
 				{
-					std::cout << "match for group " << firstIterNext << " has done!" << std::endl;
 
 					matchForThisGroup(map_PutativesMatches_itself, firstIterNext, matches_final_result_dir_next, *regions_provider_next.get());
 
@@ -5771,8 +6087,6 @@ int computeMatches::computeMatches() {
 				}
 				else
 				{
-					std::cout << "match for group " << firstIterNext + 1 << " has done!" << std::endl;
-
 					matchForThisGroup(map_PutativesMatches_itself, firstIterNext + 1, matches_final_result_dir_pre, *regions_provider_pre.get());
 
 					//---------------------------------------
@@ -5803,8 +6117,8 @@ int computeMatches::computeMatches() {
 				firstIterNext,
 				matches_final_result_dir,
 				matches_final_result_dir_next,
-				regions_provider,
-				regions_provider_next
+				*regions_provider.get(),
+				*regions_provider_next.get()
 			);
 		}
 		else 

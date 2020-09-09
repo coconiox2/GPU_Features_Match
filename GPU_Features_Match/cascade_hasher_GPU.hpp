@@ -556,10 +556,15 @@ namespace openMVG {
 						{
 							for (const auto& feature_id : hashed_descriptions2.buckets[j][bucket_id])
 							{
-								if (used_descriptor.size() > feature_id + 1) 
+								if (used_descriptor.size() > feature_id + 1 
+									|| used_descriptor.size() == feature_id + 1)
 								{
 									candidate_descriptors.emplace_back(feature_id);
 									used_descriptor[feature_id] = false;
+								}else
+								{
+									int sssssss = 1;
+									//std::cout << "error in match2descriptions!" << std::endl;
 								}
 							}
 						}
