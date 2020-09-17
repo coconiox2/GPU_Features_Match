@@ -4,6 +4,7 @@
 #include "cascade_hasher_GPU.hpp"
 
 //openMVG
+#include <Eigen/Core>
 
 #include "openMVG/image/image_io.hpp"
 #include "openMVG/image/image_concat.hpp"
@@ -37,7 +38,7 @@
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/stl/stl.hpp"
 #include "openMVG/system/timer.hpp"
-#include "third_party/cmdLine/cmdLine.h"
+
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
 //CUDA V 10.2
@@ -74,7 +75,33 @@ void computeMatches::test() {
 	printf("testCUDACPP result:%d", c);
 	printf("cpp test success\n");
 }
-void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_descriptor)
+//void computeMatches::getInputAndOutputDir(int argc, char **argv, std::string &sInputJpgDir_father, std::string &sSfM_Data_FilenameDir_father, std::string &sMatchesOutputDir_father)
+//{
+//	CmdLine cmd;
+//	cmd.add(make_option('i', sInputJpgDir_father, "input_jpg"));
+//	cmd.add(make_option('d', sSfM_Data_FilenameDir_father, "input_sfmData"));
+//	cmd.add(make_option('o', sMatchesOutputDir_father, "out_dir"));
+//
+//
+//	try {
+//		if (argc == 1) throw std::string("Invalid command line parameter.");
+//		cmd.process(argc, argv);
+//	}
+//	catch (const std::string& s) {
+//		std::cerr << "Usage: " << argv[0] << '\n'
+//			<< std::endl;
+//
+//		std::cerr << s << std::endl;
+//		return ;
+//	}
+//	/*sInputJpgDir_father = "D:\imageData";
+//	sSfM_Data_FilenameDir_father = stlplus::folder_up(sInputJpgDir_father, 4) +
+//	"/imageData/tianjin/";
+//
+//	sMatchesOutputDir_father = stlplus::folder_up(sInputJpgDir_father, 4) +
+//	"/imageData/tianjin/";*/
+//}
+void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_descriptor, std::string sSfM_Data_FilenameDir_father, std::string sMatchesOutputDir_father)
 {
 	int imgCount = group_count*block_count_per_group*image_count_per_block;
 	//用于保存每组数据计算得到的零和平均值，最后再平均为zero_mean_descriptors
@@ -280,7 +307,9 @@ void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_desc
 //}
 int computeMatches::computeHashes
 (
-	Eigen::VectorXf &_zero_mean_descriptor
+	Eigen::VectorXf &_zero_mean_descriptor,
+	std::string sSfM_Data_FilenameDir_father, 
+	std::string sMatchesOutputDir_father
 )
 
 {
@@ -4266,6 +4295,8 @@ void match_block_itself
 
 		const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
 
+		
+
 		const std::vector<features::PointFeature> pointFeaturesI = regionsI->GetRegionsPositions();
 		const unsigned char * tabI =
 			reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
@@ -4384,7 +4415,8 @@ void matchBetweenBlocksInOneGroup
 	int secondIter,//第一块编号 
 	int secondIterNext,//第二块编号
 	int startImgIndexThisBlock,//第一块内的起始图片编号
-	int startImgIndexThisBlockNext//待匹配块内的起始图片编号
+	int startImgIndexThisBlockNext,//待匹配块内的起始图片编号
+	std::string  sSfM_Data_FilenameDir_father
 )
 {
 	Pair_Set pairs = getBetweenBlockPairs(startImgIndexThisBlock, startImgIndexThisBlockNext);
@@ -4661,7 +4693,8 @@ void matchBetweenBlocksInDiffGroups
 	int secondIter,//第一块编号 
 	int secondIterNext,//第二块编号
 	int startImgIndexThisBlock,//第一块内的起始图片编号
-	int startImgIndexThisBlockNext//待匹配块内的起始图片编号
+	int startImgIndexThisBlockNext,//待匹配块内的起始图片编号
+	std::string  sSfM_Data_FilenameDir_father
 )
 {
 	Pair_Set pairs = getBetweenBlockPairs(startImgIndexThisBlock, startImgIndexThisBlockNext);
@@ -4911,7 +4944,8 @@ void matchForThisGroup
 	PairWiseMatches &map_PutativesMatches,//存储一整组自我匹配的匹配结果
 	int firstIter,//第一组的编号
 	std::string matches_final_result_dir,//第一组特征描述符文件的目录
-	const sfm::Regions_Provider & regions_provider//第一组图像的特征描述符指针
+	const sfm::Regions_Provider & regions_provider,//第一组图像的特征描述符指针
+	std::string sSfM_Data_FilenameDir_father
 )
 {
 	// If the matches already exists, reload them
@@ -5028,7 +5062,8 @@ void matchForThisGroup
 						secondIter,//第一块编号
 						secondIterNext,//第二块编号
 						startImgIndexThisBlock,//第一块内的起始图片编号
-						startImgIndexThisBlockNext//待匹配块内的起始图片编号
+						startImgIndexThisBlockNext,//待匹配块内的起始图片编号
+						sSfM_Data_FilenameDir_father
 					);
 				}
 			}
@@ -5069,7 +5104,8 @@ void matchBetweenGroups
 	std::string matches_final_result_dir,
 	std::string matches_final_result_dir_next,
 	const sfm::Regions_Provider & regions_provider,
-	const sfm::Regions_Provider & regions_provider_next
+	const sfm::Regions_Provider & regions_provider_next,
+	std::string  sSfM_Data_FilenameDir_father
 )
 {
 	system::Timer betweenGroupTimeCost;
@@ -5169,7 +5205,8 @@ void matchBetweenGroups
 						thisGroupBlockIndex,//第一块编号 
 						nextGroupBlockIndex,//第二块编号
 						startIndexThisGroup + thisGroupBlockIndex*image_count_per_block,//第一块内的起始图片编号
-						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
+						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block,//待匹配块内的起始图片编号
+						sSfM_Data_FilenameDir_father
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
 					//hashed_base_next = hashed_base_pre;
@@ -5197,7 +5234,8 @@ void matchBetweenGroups
 						thisGroupBlockIndex,//第一块编号 
 						nextGroupBlockIndex,//第二块编号
 						startIndexThisGroup + thisGroupBlockIndex*image_count_per_block,//第一块内的起始图片编号
-						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
+						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block,//待匹配块内的起始图片编号
+						sSfM_Data_FilenameDir_father
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
 					//hashed_base_next = hashed_base_pre;
@@ -5227,7 +5265,8 @@ void matchBetweenGroups
 						thisGroupBlockIndex,//第一块编号 
 						nextGroupBlockIndex,//第二块编号
 						startIndexThisGroup + thisGroupBlockIndex*image_count_per_block,//第一块内的起始图片编号
-						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
+						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block,//待匹配块内的起始图片编号
+						sSfM_Data_FilenameDir_father
 					);
 					//交换待匹配块(nextGroupBlockIndex)哈希数据和预读块(nextGroupBlockIndex+1)哈希数据
 					
@@ -5249,7 +5288,8 @@ void matchBetweenGroups
 						thisGroupBlockIndex,//第一块编号 
 						nextGroupBlockIndex,//第二块编号
 						startIndexThisGroup + thisGroupBlockIndex*image_count_per_block,//第一块内的起始图片编号
-						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block//待匹配块内的起始图片编号
+						startIndexThisGroupNext + nextGroupBlockIndex*image_count_per_block,//待匹配块内的起始图片编号
+						sSfM_Data_FilenameDir_father
 					);
 				}
 				else
@@ -5281,7 +5321,7 @@ void matchBetweenGroups
 //1.group_count组之间匹配
 //2.组内的block_count_per_group块 自我组内匹配
 
-int computeMatches::computeMatches() {
+int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 	
 
 	//fundamental matrix
@@ -5614,7 +5654,8 @@ int computeMatches::computeMatches() {
 						matches_final_result_dir,
 						matches_final_result_dir_next,
 						*regions_provider.get(),
-						*regions_provider_next.get()
+						*regions_provider_next.get(),
+						sSfM_Data_FilenameDir_father
 					);
 					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
 					matches_final_result_dir_next = matches_final_result_dir_pre;
@@ -5696,7 +5737,8 @@ int computeMatches::computeMatches() {
 						matches_final_result_dir,
 						matches_final_result_dir_next,
 						*regions_provider.get(),
-						*regions_provider_next.get()
+						*regions_provider_next.get(),
+						sSfM_Data_FilenameDir_father
 					);
 					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
 					matches_final_result_dir_next = matches_final_result_dir_pre;
@@ -5780,7 +5822,8 @@ int computeMatches::computeMatches() {
 						matches_final_result_dir,
 						matches_final_result_dir_next,
 						*regions_provider.get(),
-						*regions_provider_next.get()
+						*regions_provider_next.get(),
+						sSfM_Data_FilenameDir_father
 					);
 					//预读组数据赋值给待匹配组数据
 					matches_final_result_dir_next = matches_final_result_dir_pre;
@@ -5797,7 +5840,8 @@ int computeMatches::computeMatches() {
 						matches_final_result_dir,
 						matches_final_result_dir_next,
 						*regions_provider.get(),
-						*regions_provider_next.get()
+						*regions_provider_next.get(),
+						sSfM_Data_FilenameDir_father
 					);
 				}
 				else
@@ -5823,7 +5867,7 @@ int computeMatches::computeMatches() {
 				{
 					
 
-					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
+					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get(), sSfM_Data_FilenameDir_father);
 					//---------------------------------------
 					//-- Export putative matches
 					//---------------------------------------
@@ -5979,7 +6023,8 @@ int computeMatches::computeMatches() {
 				matches_final_result_dir,
 				matches_final_result_dir_next,
 				*regions_provider.get(),
-				*regions_provider_next.get()
+				*regions_provider_next.get(),
+				sSfM_Data_FilenameDir_father
 			);
 			//最后两组数据匹配
 			matchBetweenGroups
@@ -5989,7 +6034,8 @@ int computeMatches::computeMatches() {
 				matches_final_result_dir_next,
 				matches_final_result_dir_pre,
 				*regions_provider_next.get(),
-				*regions_provider_pre.get()
+				*regions_provider_pre.get(),
+				sSfM_Data_FilenameDir_father
 			);
 			//最后三组
 			//firstIter
@@ -6016,7 +6062,7 @@ int computeMatches::computeMatches() {
 				{
 					
 
-					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get());
+					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get(), sSfM_Data_FilenameDir_father);
 
 					//---------------------------------------
 					//-- Export putative matches
@@ -6052,7 +6098,7 @@ int computeMatches::computeMatches() {
 				else
 				{
 
-					matchForThisGroup(map_PutativesMatches_itself, firstIterNext, matches_final_result_dir_next, *regions_provider_next.get());
+					matchForThisGroup(map_PutativesMatches_itself, firstIterNext, matches_final_result_dir_next, *regions_provider_next.get(), sSfM_Data_FilenameDir_father);
 
 					//---------------------------------------
 					//-- Export putative matches
@@ -6087,7 +6133,7 @@ int computeMatches::computeMatches() {
 				}
 				else
 				{
-					matchForThisGroup(map_PutativesMatches_itself, firstIterNext + 1, matches_final_result_dir_pre, *regions_provider_pre.get());
+					matchForThisGroup(map_PutativesMatches_itself, firstIterNext + 1, matches_final_result_dir_pre, *regions_provider_pre.get(), sSfM_Data_FilenameDir_father);
 
 					//---------------------------------------
 					//-- Export putative matches
@@ -6118,7 +6164,8 @@ int computeMatches::computeMatches() {
 				matches_final_result_dir,
 				matches_final_result_dir_next,
 				*regions_provider.get(),
-				*regions_provider_next.get()
+				*regions_provider_next.get(),
+				sSfM_Data_FilenameDir_father
 			);
 		}
 		else 
@@ -6130,7 +6177,7 @@ int computeMatches::computeMatches() {
 	std::cout << "match for all groups has done!" << std::endl;
 	return EXIT_SUCCESS;
 }
-int computeMatches::showMatchesOnImage() 
+int computeMatches::showMatchesOnImage(std::string sSfM_Data_FilenameDir_father, std::string sMatchesOutputDir_father)
 {
 	char temp_i[2] = { ' ','\0' };
 	temp_i[0] = 48;

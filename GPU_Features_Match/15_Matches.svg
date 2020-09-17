@@ -1,0 +1,31 @@
+<?xml version="1.0" standalone="yes"?>
+<!-- SVG graphic -->
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'
+width="4000px" height="6000px" preserveAspectRatio="xMinYMin meet" viewBox="0 0 4000 6000" version="1.1">
+<image x="0" y="0" width="4000px" height="3000px" opacity="1" xlink:href="D:\/imageData/tianjin/DJI_0/DJI_0001.JPG"/>
+<image x="0" y="3000" width="4000px" height="3000px" opacity="1" xlink:href="D:\/imageData/tianjin/DJI_1/DJI_0005.JPG"/>
+<polyline points="986.018,124.245,2804.12,5088.22" stroke="rgb(255,174,0)" stroke-width="2" fill="none"/>
+<polyline points="3619.41,657.255,2801.76,3749.48" stroke="rgb(55,255,0)" stroke-width="2" fill="none"/>
+<polyline points="573.927,1051.71,2371.49,4227.79" stroke="rgb(0,110,255)" stroke-width="2" fill="none"/>
+<polyline points="3732.58,1561.08,1561.21,4565.17" stroke="rgb(0,85,255)" stroke-width="2" fill="none"/>
+<polyline points="1681.59,1769.28,2186.3,5613.58" stroke="rgb(131,255,0)" stroke-width="2" fill="none"/>
+<polyline points="3741.38,2041.09,3076.76,5113.17" stroke="rgb(17,0,255)" stroke-width="2" fill="none"/>
+<polyline points="2276.92,2620.15,1527.36,5649.38" stroke="rgb(255,0,178)" stroke-width="2" fill="none"/>
+<polyline points="3015.56,2751.68,3250.31,5424.33" stroke="rgb(0,178,255)" stroke-width="2" fill="none"/>
+<circle cx="986.018" cy="124.245" r="4" stroke="rgb(255,174,0)" stroke-width="2" fill="none"/>
+<circle cx="2804.12" cy="5088.22" r="4" stroke="rgb(255,174,0)" stroke-width="2" fill="none"/>
+<circle cx="3619.41" cy="657.255" r="4" stroke="rgb(55,255,0)" stroke-width="2" fill="none"/>
+<circle cx="2801.76" cy="3749.48" r="4" stroke="rgb(55,255,0)" stroke-width="2" fill="none"/>
+<circle cx="573.927" cy="1051.71" r="4" stroke="rgb(0,110,255)" stroke-width="2" fill="none"/>
+<circle cx="2371.49" cy="4227.79" r="4" stroke="rgb(0,110,255)" stroke-width="2" fill="none"/>
+<circle cx="3732.58" cy="1561.08" r="4" stroke="rgb(0,85,255)" stroke-width="2" fill="none"/>
+<circle cx="1561.21" cy="4565.17" r="4" stroke="rgb(0,85,255)" stroke-width="2" fill="none"/>
+<circle cx="1681.59" cy="1769.28" r="4" stroke="rgb(131,255,0)" stroke-width="2" fill="none"/>
+<circle cx="2186.3" cy="5613.58" r="4" stroke="rgb(131,255,0)" stroke-width="2" fill="none"/>
+<circle cx="3741.38" cy="2041.09" r="4" stroke="rgb(17,0,255)" stroke-width="2" fill="none"/>
+<circle cx="3076.76" cy="5113.17" r="4" stroke="rgb(17,0,255)" stroke-width="2" fill="none"/>
+<circle cx="2276.92" cy="2620.15" r="4" stroke="rgb(255,0,178)" stroke-width="2" fill="none"/>
+<circle cx="1527.36" cy="5649.38" r="4" stroke="rgb(255,0,178)" stroke-width="2" fill="none"/>
+<circle cx="3015.56" cy="2751.68" r="4" stroke="rgb(0,178,255)" stroke-width="2" fill="none"/>
+<circle cx="3250.31" cy="5424.33" r="4" stroke="rgb(0,178,255)" stroke-width="2" fill="none"/>
+</svg>

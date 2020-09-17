@@ -1,15 +1,42 @@
+#include "third_party/cmdLine/cmdLine.h"
 #include "computeMatchesCU.h"
+
 
 using namespace computeMatches;
 int main(int argc, char** argv) {
-	openMVG::system::Timer computeHashTimeCost;
+	//Defines the path and name of the read and output files
+	std::string sInputJpgDir_father;
+	std::string sSfM_Data_FilenameDir_father;
+	std::string sMatchesOutputDir_father;
 
-	/*Eigen::VectorXf _zero_mean_descriptor;
-	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor);
-	computeMatches::computeHashes(_zero_mean_descriptor);
-	std::cout << "Tasks (computing hash for all groups) cost " << computeHashTimeCost.elapsed() << "s" << std::endl;*/
+	CmdLine cmd;
+	cmd.add(make_option('i', sInputJpgDir_father, "input_jpg"));
+	cmd.add(make_option('d', sSfM_Data_FilenameDir_father, "input_sfmData"));
+	cmd.add(make_option('o', sMatchesOutputDir_father, "out_dir"));
+
+
+	try {
+		if (argc == 1) throw std::string("Invalid command line parameter.");
+		cmd.process(argc, argv);
+	}
+	catch (const std::string& s) {
+		std::cerr << "Usage: " << argv[0] << '\n'
+			<< std::endl;
+
+		std::cerr << s << std::endl;
+		return EXIT_FAILURE;
+	}
+	
+	//computeMatches::getInputAndOutputDir(sInputJpgDir_father, sSfM_Data_FilenameDir_father, sMatchesOutputDir_father);
+	
+	
+	openMVG::system::Timer computeHashTimeCost;
+	Eigen::VectorXf _zero_mean_descriptor;
+	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor, sSfM_Data_FilenameDir_father, sMatchesOutputDir_father);
+	computeMatches::computeHashes(_zero_mean_descriptor, sSfM_Data_FilenameDir_father, sMatchesOutputDir_father);
+	std::cout << "Tasks (computing hash for all groups) cost " << computeHashTimeCost.elapsed() << "s" << std::endl;
 	openMVG::system::Timer computeMatchesTimeCost;
-	computeMatches::computeMatches();
+	computeMatches::computeMatches(sSfM_Data_FilenameDir_father);
 	
 	//computeMatches::test();
 
