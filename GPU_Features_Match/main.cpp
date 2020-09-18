@@ -32,11 +32,11 @@ int main(int argc, char** argv) {
 	
 	openMVG::system::Timer computeHashTimeCost;
 	Eigen::VectorXf _zero_mean_descriptor;
-	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor, sSfM_Data_FilenameDir_father, sMatchesOutputDir_father);
-	computeMatches::computeHashes(_zero_mean_descriptor, sSfM_Data_FilenameDir_father, sMatchesOutputDir_father);
+	computeMatches::computeZeroMeanDescriptors(_zero_mean_descriptor, sInputJpgDir_father, sMatchesOutputDir_father);
+	computeMatches::computeHashes(_zero_mean_descriptor, sInputJpgDir_father, sMatchesOutputDir_father);
 	std::cout << "Tasks (computing hash for all groups) cost " << computeHashTimeCost.elapsed() << "s" << std::endl;
 	openMVG::system::Timer computeMatchesTimeCost;
-	computeMatches::computeMatches(sSfM_Data_FilenameDir_father);
+	computeMatches::computeMatches(sInputJpgDir_father);
 	
 	//computeMatches::test();
 

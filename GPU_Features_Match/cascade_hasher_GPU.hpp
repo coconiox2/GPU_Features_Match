@@ -32,7 +32,7 @@
 #include <sstream>  
 
 #include "openMVG/matching/indMatch.hpp"
-#include "metric.hpp"
+//#include "metric.hpp"
 #include "openMVG/numeric/eigen_alias_definition.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
 

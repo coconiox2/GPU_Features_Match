@@ -122,8 +122,8 @@ void computeMatches::computeZeroMeanDescriptors(Eigen::VectorXf &_zero_mean_desc
 	for (int i = 0; i < group_count; i++) {
 		temp_i[0] = i + 48;
 		const std::string str_i = temp_i;
-		sSfM_Data_Filename = sSfM_Data_FilenameDir_father + "DJI_" + str_i + "_build/" + "sfm_data.json";
-		sMatchesOutputDir = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
+		sSfM_Data_Filename = sSfM_Data_FilenameDir_father + "/DJI_" + str_i + "_build/" + "sfm_data.json";
+		sMatchesOutputDir = sMatchesOutputDir_father + "/DJI_" + str_i + "_build/";
 		//---------------------------------------
 		// Read SfM Scene (image view & intrinsics data)
 		//---------------------------------------
@@ -424,13 +424,13 @@ int computeMatches::computeHashes
 		const std::string str_i = temp_i;
 
 		if (firstIter == 0) {
-			sSfM_Data_Filename_hash = sSfM_Data_FilenameDir_father + "DJI_" + str_i + "_build/" + "sfm_data.json";
-			sMatchesOutputDir_hash = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
+			sSfM_Data_Filename_hash = sSfM_Data_FilenameDir_father + "/DJI_" + str_i + "_build/" + "sfm_data.json";
+			sMatchesOutputDir_hash = sMatchesOutputDir_father + "/DJI_" + str_i + "_build/";
 
 			temp_i[0] = firstIter + 1 + 48;
 			const std::string str_i_plus_1 = temp_i;
-			sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_i_plus_1 + "_build/" + "sfm_data.json";
-			sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "DJI_" + str_i_plus_1 + "_build/";
+			sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_i_plus_1 + "_build/" + "sfm_data.json";
+			sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "/DJI_" + str_i_plus_1 + "_build/";
 			//先读进来两组数据，处理第一组，第一组处理完后把第二组的值赋给第一组，再从磁盘里读下一组放到pre里
 			{
 				
@@ -1398,8 +1398,8 @@ int computeMatches::computeHashes
 
 				temp_i[0] = firstIter + 2 + 48;
 				const std::string str_i_plus_2 = temp_i;
-				sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_i_plus_2 + "_build/" + "sfm_data.json";
-				sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "DJI_" + str_i_plus_2 + "_build/";
+				sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_i_plus_2 + "_build/" + "sfm_data.json";
+				sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "/DJI_" + str_i_plus_2 + "_build/";
 				
 				//预读图像组的数据
 				if (!Load(sfm_data_hash_pre, sSfM_Data_Filename_hash_pre, ESfM_Data(VIEWS | INTRINSICS))) {
@@ -2338,8 +2338,8 @@ int computeMatches::computeHashes
 
 			temp_i[0] = firstIter + 2 + 48;
 			const std::string str_i_plus_2 = temp_i;
-			sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_i_plus_2 + "_build/" + "sfm_data.json";
-			sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "DJI_" + str_i_plus_2 + "_build/";
+			sSfM_Data_Filename_hash_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_i_plus_2 + "_build/" + "sfm_data.json";
+			sMatchesOutputDir_hash_pre = sMatchesOutputDir_father + "/DJI_" + str_i_plus_2 + "_build/";
 
 			//预读图像组的数据
 			if (!Load(sfm_data_hash_pre, sSfM_Data_Filename_hash_pre, ESfM_Data(VIEWS | INTRINSICS))) {
@@ -4523,9 +4523,9 @@ void matchBetweenBlocksInOneGroup
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0001.JPG";
+						+ "/DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0002.JPG";
+						+ "/DJI_0/DJI_0002.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4552,9 +4552,9 @@ void matchBetweenBlocksInOneGroup
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0002.JPG";
+						+ "/DJI_0/DJI_0002.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0003.JPG";
+						+ "/DJI_0/DJI_0003.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4581,9 +4581,9 @@ void matchBetweenBlocksInOneGroup
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0001.JPG";
+						+ "/DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0004.JPG";
+						+ "/DJI_0/DJI_0004.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4610,9 +4610,9 @@ void matchBetweenBlocksInOneGroup
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0005.JPG";
+						+ "/DJI_1/DJI_0005.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0006.JPG";
+						+ "/DJI_1/DJI_0006.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4639,9 +4639,9 @@ void matchBetweenBlocksInOneGroup
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0007.JPG";
+						+ "/DJI_1/DJI_0007.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0008.JPG";
+						+ "/DJI_1/DJI_0008.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4802,9 +4802,9 @@ void matchBetweenBlocksInDiffGroups
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0001.JPG";
+						+ "/DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0005.JPG";
+						+ "/DJI_1/DJI_0005.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4832,9 +4832,9 @@ void matchBetweenBlocksInDiffGroups
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 	               	const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0001.JPG";
+						+ "/DJI_0/DJI_0001.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0006.JPG";
+						+ "/DJI_1/DJI_0006.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4861,9 +4861,9 @@ void matchBetweenBlocksInDiffGroups
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0002.JPG";
+						+ "/DJI_0/DJI_0002.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0005.JPG";
+						+ "/DJI_1/DJI_0005.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -4891,9 +4891,9 @@ void matchBetweenBlocksInDiffGroups
 				// Draw correspondences after Nearest Neighbor ratio filter
 				{
 					const string jpg_filenameL = sSfM_Data_FilenameDir_father
-						+ "DJI_0/DJI_0002.JPG";
+						+ "/DJI_0/DJI_0002.JPG";
 					const string jpg_filenameR = sSfM_Data_FilenameDir_father
-						+ "DJI_1/DJI_0008.JPG";
+						+ "/DJI_1/DJI_0008.JPG";
 
 					Image<unsigned char> imageL, imageR;
 					ReadImage(jpg_filenameL.c_str(), &imageL);
@@ -5409,7 +5409,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 		temp_firstIter[0] = firstIter + 48;
 		const std::string str_firstIter = temp_firstIter;
 
-		matches_final_result_dir = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIter + "_build/";
+		matches_final_result_dir = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIter + "_build/";
 		if (matches_final_result_dir.empty() || !stlplus::is_folder(matches_final_result_dir))
 		{
 			std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5531,7 +5531,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 					temp_firstIterNext[0] = firstIterNext + 48;
 					const std::string str_firstIterNext = temp_firstIterNext;
 
-					matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterNext + "_build/";
+					matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterNext + "_build/";
 					if (matches_final_result_dir_next.empty() || !stlplus::is_folder(matches_final_result_dir_next))
 					{
 						std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5594,7 +5594,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 					temp_firstIterPre[0] = firstIterNext + 1 + 48;
 					std::string str_firstIterPre = temp_firstIterPre;
 
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterPre + "_build/";
+					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
 					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
 					{
 						std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5668,7 +5668,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 					temp_firstIterPre[0] = firstIterNext + 2 + 48;
 					str_firstIterPre = temp_firstIterPre;
 
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterPre + "_build/";
+					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
 					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
 					{
 						std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5751,7 +5751,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 					temp_firstIterPre[0] = firstIterNext + 2 + 48;
 					std::string str_firstIterPre = temp_firstIterPre;
 
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterPre + "_build/";
+					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
 					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
 					{
 						std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5920,7 +5920,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 			temp_firstIterNext[0] = firstIterNext + 48;
 			const std::string str_firstIterNext = temp_firstIterNext;
 
-			matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterNext + "_build/";
+			matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterNext + "_build/";
 			if (matches_final_result_dir_next.empty() || !stlplus::is_folder(matches_final_result_dir_next))
 			{
 				std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -5971,7 +5971,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 			temp_firstIterPre[0] = firstIterNext + 1 + 48;
 			std::string str_firstIterPre = temp_firstIterPre;
 
-			matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "DJI_" + str_firstIterPre + "_build/";
+			matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
 			if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
 			{
 				std::cerr << "\nIt is an invalid output directory" << std::endl;
@@ -6182,6 +6182,6 @@ int computeMatches::showMatchesOnImage(std::string sSfM_Data_FilenameDir_father,
 	char temp_i[2] = { ' ','\0' };
 	temp_i[0] = 48;
 	const std::string str_i = temp_i;
-	std::string imageDir = sMatchesOutputDir_father + "DJI_" + str_i + "_build/";
+	std::string imageDir = sMatchesOutputDir_father + "/DJI_" + str_i + "_build/";
 	return EXIT_SUCCESS;
 }
