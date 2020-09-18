@@ -5523,360 +5523,363 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 			//}
 			for (int firstIterNext = firstIter + 1; firstIterNext < group_count; firstIterNext++)
 			{
-				if (firstIterNext == firstIter + 1)
+				
+				//if (firstIterNext == firstIter + 1)
+				//{
+				//	//读待匹配(firstIterNext)的一组特征描述符
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//	char temp_firstIterNext[2] = { ' ','\0' };
+				//	temp_firstIterNext[0] = firstIterNext + 48;
+				//	const std::string str_firstIterNext = temp_firstIterNext;
+
+				//	matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterNext + "_build/";
+				//	if (matches_final_result_dir_next.empty() || !stlplus::is_folder(matches_final_result_dir_next))
+				//	{
+				//		std::cerr << "\nIt is an invalid output directory" << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Read SfM Scene (image view & intrinsics data)
+				//	//---------------------------------------
+				//	sfm_data_filename_next = matches_final_result_dir_next + "sfm_data.json";
+				//	if (!Load(sfm_data_next, sfm_data_filename_next, ESfM_Data(VIEWS | INTRINSICS))) {
+				//		std::cerr << std::endl
+				//			<< "The input SfM_Data file \"" << sfm_data_filename << "\" cannot be read." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Load SfM Scene regions
+				//	//---------------------------------------
+				//	// Init the regions_type from the image describer file (used for image regions extraction)
+				//	using namespace openMVG::features;
+				//	const std::string sImage_describer_next = stlplus::create_filespec(matches_final_result_dir_next, "image_describer", "json");
+				//	std::unique_ptr<Regions> regions_type_next = Init_region_type_from_file(sImage_describer_next);
+				//	if (!regions_type_next)
+				//	{
+				//		std::cerr << "Invalid: "
+				//			<< sImage_describer_next << " regions type file." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+
+				//	using namespace openMVG::features;
+				//	// Default regions provider (load & store all regions in memory)
+				//	regions_provider_next = std::make_shared<Regions_Provider>();
+
+
+
+				//	if (!regions_provider_next->load(sfm_data_next, matches_final_result_dir_next, regions_type_next, &progress_next)) {
+				//		std::cerr << std::endl << "Invalid regions." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+
+				//	//// Build some alias from SfM_Data Views data:
+				//	//// - List views as a vector of filenames & image sizes
+				//	//{
+				//	//	vec_fileNames_next.reserve(sfm_data_next.GetViews().size());
+				//	//	vec_imagesSize_next.reserve(sfm_data_next.GetViews().size());
+				//	//	for (Views::const_iterator iter = sfm_data_next.GetViews().begin();
+				//	//		iter != sfm_data_next.GetViews().end();
+				//	//		++iter)
+				//	//	{
+				//	//		const View * v = iter->second.get();
+				//	//		vec_fileNames_next.push_back(stlplus::create_filespec(sfm_data_next.s_root_path,
+				//	//			v->s_Img_path));
+				//	//		vec_imagesSize_next.push_back(std::make_pair(v->ui_width, v->ui_height));
+				//	//	}
+				//	//}
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+
+				//	//读预读组(firstIterNext+1)的特征描述符数据
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//	char temp_firstIterPre[2] = { ' ','\0' };
+				//	temp_firstIterPre[0] = firstIterNext + 1 + 48;
+				//	std::string str_firstIterPre = temp_firstIterPre;
+
+				//	matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
+				//	if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
+				//	{
+				//		std::cerr << "\nIt is an invalid output directory" << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Read SfM Scene (image view & intrinsics data)
+				//	//---------------------------------------
+				//	sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
+				//	if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
+				//		std::cerr << std::endl
+				//			<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Load SfM Scene regions
+				//	//---------------------------------------
+				//	// Init the regions_type from the image describer file (used for image regions extraction)
+				//	using namespace openMVG::features;
+				//	const std::string sImage_describer_pre = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+				//	std::unique_ptr<Regions> regions_type_pre = Init_region_type_from_file(sImage_describer_pre);
+				//	if (!regions_type_pre)
+				//	{
+				//		std::cerr << "Invalid: "
+				//			<< sImage_describer_pre << " regions type file." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	// Default regions provider (load & store all regions in memory)
+				//	regions_provider_pre = std::make_shared<Regions_Provider>();
+
+				//	if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre, &progress_pre)) {
+				//		std::cerr << "Invalid regions." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+
+				//	//// Build some alias from SfM_Data Views data:
+				//	//// - List views as a vector of filenames & image sizes
+				//	//{
+				//	//	vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
+				//	//	vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
+				//	//	for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
+				//	//		iter != sfm_data_pre.GetViews().end();
+				//	//		++iter)
+				//	//	{
+				//	//		const View * v = iter->second.get();
+				//	//		vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
+				//	//			v->s_Img_path));
+				//	//		vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+				//	//	}
+				//	//}
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+
+				//	matchBetweenGroups
+				//	(
+				//		firstIter,
+				//		firstIterNext,
+				//		matches_final_result_dir,
+				//		matches_final_result_dir_next,
+				//		*regions_provider.get(),
+				//		*regions_provider_next.get(),
+				//		sSfM_Data_FilenameDir_father
+				//	);
+				//	//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
+				//	matches_final_result_dir_next = matches_final_result_dir_pre;
+				//	regions_provider_next = regions_provider_pre;
+				//	/*vec_fileNames_next = vec_fileNames_pre;
+				//	vec_imagesSize_next = vec_imagesSize_pre;*/
+
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//	//char temp_firstIterPre[2] = { ' ','\0' };
+				//	temp_firstIterPre[0] = firstIterNext + 2 + 48;
+				//	str_firstIterPre = temp_firstIterPre;
+
+				//	matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
+				//	if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
+				//	{
+				//		std::cerr << "\nIt is an invalid output directory" << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Read SfM Scene (image view & intrinsics data)
+				//	//---------------------------------------
+				//	sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
+				//	//SfM_Data sfm_data_pre;
+				//	if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
+				//		std::cerr << std::endl
+				//			<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Load SfM Scene regions
+				//	//---------------------------------------
+				//	// Init the regions_type from the image describer file (used for image regions extraction)
+				//	using namespace openMVG::features;
+				//	const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+				//	std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
+				//	if (!regions_type_pre_temp)
+				//	{
+				//		std::cerr << "Invalid: "
+				//			<< sImage_describer_pre_temp << " regions type file." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	// Load the corresponding view regions
+				//	//std::shared_ptr<Regions_Provider> regions_provider_pre;
+				//	// Default regions provider (load & store all regions in memory)
+				//	regions_provider_pre = std::make_shared<Regions_Provider>();
+				//	// Show the progress on the command line:
+				//	//C_Progress_display progress_pre;
+
+				//	if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
+				//		std::cerr << "Invalid regions." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+
+				//	// Build some alias from SfM_Data Views data:
+				//	// - List views as a vector of filenames & image sizes
+				//	/*std::vector<std::string> vec_fileNames_pre;
+				//	std::vector<std::pair<size_t, size_t>> vec_imagesSize_pre;*/
+				//	{
+				//		vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
+				//		vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
+				//		for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
+				//			iter != sfm_data_pre.GetViews().end();
+				//			++iter)
+				//		{
+				//			const View * v = iter->second.get();
+				//			vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
+				//				v->s_Img_path));
+				//			vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+				//		}
+				//	}
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//}
+				//else if (firstIterNext > firstIter + 1 && firstIterNext < group_count - 2)
+				//{
+				//	matchBetweenGroups
+				//	(
+				//		firstIter,
+				//		firstIterNext,
+				//		matches_final_result_dir,
+				//		matches_final_result_dir_next,
+				//		*regions_provider.get(),
+				//		*regions_provider_next.get(),
+				//		sSfM_Data_FilenameDir_father
+				//	);
+				//	//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
+				//	matches_final_result_dir_next = matches_final_result_dir_pre;
+				//	regions_provider_next = regions_provider_pre;
+				//	/*vec_fileNames_next = vec_fileNames_pre;
+				//	vec_imagesSize_next = vec_imagesSize_pre;*/
+
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//	char temp_firstIterPre[2] = { ' ','\0' };
+				//	temp_firstIterPre[0] = firstIterNext + 2 + 48;
+				//	std::string str_firstIterPre = temp_firstIterPre;
+
+				//	matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
+				//	if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
+				//	{
+				//		std::cerr << "\nIt is an invalid output directory" << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Read SfM Scene (image view & intrinsics data)
+				//	//---------------------------------------
+				//	sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
+				//	//SfM_Data sfm_data_pre;
+				//	if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
+				//		std::cerr << std::endl
+				//			<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	//---------------------------------------
+				//	// Load SfM Scene regions
+				//	//---------------------------------------
+				//	// Init the regions_type from the image describer file (used for image regions extraction)
+				//	using namespace openMVG::features;
+				//	const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
+				//	std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
+				//	if (!regions_type_pre_temp)
+				//	{
+				//		std::cerr << "Invalid: "
+				//			<< sImage_describer_pre_temp << " regions type file." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+				//	// Load the corresponding view regions
+				//	//std::shared_ptr<Regions_Provider> regions_provider_pre;
+				//	// Default regions provider (load & store all regions in memory)
+
+				//	regions_provider_pre = std::make_shared<Regions_Provider>();
+				//	// Show the progress on the command line:
+				//	//C_Progress_display progress_pre;
+
+				//	if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
+				//		std::cerr << "Invalid regions." << std::endl;
+				//		return EXIT_FAILURE;
+				//	}
+
+				//	// Build some alias from SfM_Data Views data:
+				//	// - List views as a vector of filenames & image sizes
+				//	/*std::vector<std::string> vec_fileNames_pre;
+				//	std::vector<std::pair<size_t, size_t>> vec_imagesSize_pre;*/
+				//	{
+				//		vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
+				//		vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
+				//		for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
+				//			iter != sfm_data_pre.GetViews().end();
+				//			++iter)
+				//		{
+				//			const View * v = iter->second.get();
+				//			vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
+				//				v->s_Img_path));
+				//			vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+				//		}
+				//	}
+				//	//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
+				//}
+				//else if (firstIterNext == group_count - 2)
+				//{
+				//	//将当前组和待匹配组进行匹配
+				//	matchBetweenGroups
+				//	(
+				//		firstIter,
+				//		firstIterNext,
+				//		matches_final_result_dir,
+				//		matches_final_result_dir_next,
+				//		*regions_provider.get(),
+				//		*regions_provider_next.get(),
+				//		sSfM_Data_FilenameDir_father
+				//	);
+				//	//预读组数据赋值给待匹配组数据
+				//	matches_final_result_dir_next = matches_final_result_dir_pre;
+				//	regions_provider_next = regions_provider_pre;
+				//	/*vec_fileNames_next = vec_fileNames_pre;
+				//	vec_imagesSize_next = vec_imagesSize_pre;*/
+				//	//记得更新一些值
+				//	firstIterNext++;
+				//	//第一组和待匹配组进行匹配 matchBetweenGroups();
+				//	matchBetweenGroups
+				//	(
+				//		firstIter,
+				//		firstIterNext,
+				//		matches_final_result_dir,
+				//		matches_final_result_dir_next,
+				//		*regions_provider.get(),
+				//		*regions_provider_next.get(),
+				//		sSfM_Data_FilenameDir_father
+				//	);
+				//}
+				//else
+				//{
+				//	std::cout << " error indexing when matching between groups" << std::endl;
+				//}
+				if (firstIterNext == firstIter + 1) 
 				{
-					//读待匹配(firstIterNext)的一组特征描述符
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-					char temp_firstIterNext[2] = { ' ','\0' };
-					temp_firstIterNext[0] = firstIterNext + 48;
-					const std::string str_firstIterNext = temp_firstIterNext;
-
-					matches_final_result_dir_next = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterNext + "_build/";
-					if (matches_final_result_dir_next.empty() || !stlplus::is_folder(matches_final_result_dir_next))
+					//组内自我匹配
+					// If the matches already exists, reload them
+					PairWiseMatches map_PutativesMatches_itself;
+					std::string matches_result_filaname_itself = matches_final_result_dir + "/matches.putative_itself.bin";
+					if (stlplus::file_exists(matches_result_filaname_itself))
 					{
-						std::cerr << "\nIt is an invalid output directory" << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Read SfM Scene (image view & intrinsics data)
-					//---------------------------------------
-					sfm_data_filename_next = matches_final_result_dir_next + "sfm_data.json";
-					if (!Load(sfm_data_next, sfm_data_filename_next, ESfM_Data(VIEWS | INTRINSICS))) {
-						std::cerr << std::endl
-							<< "The input SfM_Data file \"" << sfm_data_filename << "\" cannot be read." << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Load SfM Scene regions
-					//---------------------------------------
-					// Init the regions_type from the image describer file (used for image regions extraction)
-					using namespace openMVG::features;
-					const std::string sImage_describer_next = stlplus::create_filespec(matches_final_result_dir_next, "image_describer", "json");
-					std::unique_ptr<Regions> regions_type_next = Init_region_type_from_file(sImage_describer_next);
-					if (!regions_type_next)
-					{
-						std::cerr << "Invalid: "
-							<< sImage_describer_next << " regions type file." << std::endl;
-						return EXIT_FAILURE;
-					}
-
-					using namespace openMVG::features;
-					// Default regions provider (load & store all regions in memory)
-					regions_provider_next = std::make_shared<Regions_Provider>();
-
-
-
-					if (!regions_provider_next->load(sfm_data_next, matches_final_result_dir_next, regions_type_next, &progress_next)) {
-						std::cerr << std::endl << "Invalid regions." << std::endl;
-						return EXIT_FAILURE;
-					}
-
-					//// Build some alias from SfM_Data Views data:
-					//// - List views as a vector of filenames & image sizes
-					//{
-					//	vec_fileNames_next.reserve(sfm_data_next.GetViews().size());
-					//	vec_imagesSize_next.reserve(sfm_data_next.GetViews().size());
-					//	for (Views::const_iterator iter = sfm_data_next.GetViews().begin();
-					//		iter != sfm_data_next.GetViews().end();
-					//		++iter)
-					//	{
-					//		const View * v = iter->second.get();
-					//		vec_fileNames_next.push_back(stlplus::create_filespec(sfm_data_next.s_root_path,
-					//			v->s_Img_path));
-					//		vec_imagesSize_next.push_back(std::make_pair(v->ui_width, v->ui_height));
-					//	}
-					//}
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-
-					//读预读组(firstIterNext+1)的特征描述符数据
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-					char temp_firstIterPre[2] = { ' ','\0' };
-					temp_firstIterPre[0] = firstIterNext + 1 + 48;
-					std::string str_firstIterPre = temp_firstIterPre;
-
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
-					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
-					{
-						std::cerr << "\nIt is an invalid output directory" << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Read SfM Scene (image view & intrinsics data)
-					//---------------------------------------
-					sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
-					if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
-						std::cerr << std::endl
-							<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Load SfM Scene regions
-					//---------------------------------------
-					// Init the regions_type from the image describer file (used for image regions extraction)
-					using namespace openMVG::features;
-					const std::string sImage_describer_pre = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
-					std::unique_ptr<Regions> regions_type_pre = Init_region_type_from_file(sImage_describer_pre);
-					if (!regions_type_pre)
-					{
-						std::cerr << "Invalid: "
-							<< sImage_describer_pre << " regions type file." << std::endl;
-						return EXIT_FAILURE;
-					}
-					// Default regions provider (load & store all regions in memory)
-					regions_provider_pre = std::make_shared<Regions_Provider>();
-
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre, &progress_pre)) {
-						std::cerr << "Invalid regions." << std::endl;
-						return EXIT_FAILURE;
-					}
-
-					//// Build some alias from SfM_Data Views data:
-					//// - List views as a vector of filenames & image sizes
-					//{
-					//	vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
-					//	vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
-					//	for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
-					//		iter != sfm_data_pre.GetViews().end();
-					//		++iter)
-					//	{
-					//		const View * v = iter->second.get();
-					//		vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
-					//			v->s_Img_path));
-					//		vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
-					//	}
-					//}
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-
-					matchBetweenGroups
-					(
-						firstIter,
-						firstIterNext,
-						matches_final_result_dir,
-						matches_final_result_dir_next,
-						*regions_provider.get(),
-						*regions_provider_next.get(),
-						sSfM_Data_FilenameDir_father
-					);
-					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
-					matches_final_result_dir_next = matches_final_result_dir_pre;
-					regions_provider_next = regions_provider_pre;
-					/*vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;*/
-
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-					//char temp_firstIterPre[2] = { ' ','\0' };
-					temp_firstIterPre[0] = firstIterNext + 2 + 48;
-					str_firstIterPre = temp_firstIterPre;
-
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
-					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
-					{
-						std::cerr << "\nIt is an invalid output directory" << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Read SfM Scene (image view & intrinsics data)
-					//---------------------------------------
-					sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
-					//SfM_Data sfm_data_pre;
-					if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
-						std::cerr << std::endl
-							<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Load SfM Scene regions
-					//---------------------------------------
-					// Init the regions_type from the image describer file (used for image regions extraction)
-					using namespace openMVG::features;
-					const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
-					std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
-					if (!regions_type_pre_temp)
-					{
-						std::cerr << "Invalid: "
-							<< sImage_describer_pre_temp << " regions type file." << std::endl;
-						return EXIT_FAILURE;
-					}
-					// Load the corresponding view regions
-					//std::shared_ptr<Regions_Provider> regions_provider_pre;
-					// Default regions provider (load & store all regions in memory)
-					regions_provider_pre = std::make_shared<Regions_Provider>();
-					// Show the progress on the command line:
-					//C_Progress_display progress_pre;
-
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
-						std::cerr << "Invalid regions." << std::endl;
-						return EXIT_FAILURE;
-					}
-
-					// Build some alias from SfM_Data Views data:
-					// - List views as a vector of filenames & image sizes
-					/*std::vector<std::string> vec_fileNames_pre;
-					std::vector<std::pair<size_t, size_t>> vec_imagesSize_pre;*/
-					{
-						vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
-						vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
-						for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
-							iter != sfm_data_pre.GetViews().end();
-							++iter)
+						if (!(Load(map_PutativesMatches_itself, matches_result_filaname_itself)))
 						{
-							const View * v = iter->second.get();
-							vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
-								v->s_Img_path));
-							vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+							std::cerr << "Cannot load input matches file";
+							return EXIT_FAILURE;
 						}
+						std::cout << "\t PREVIOUS RESULTS LOADED;"
+							<< " #pair: " << map_PutativesMatches_itself.size() << std::endl;
 					}
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-				}
-				else if (firstIterNext > firstIter + 1 && firstIterNext < group_count - 2)
-				{
-					matchBetweenGroups
-					(
-						firstIter,
-						firstIterNext,
-						matches_final_result_dir,
-						matches_final_result_dir_next,
-						*regions_provider.get(),
-						*regions_provider_next.get(),
-						sSfM_Data_FilenameDir_father
-					);
-					//预读组数据赋值给待匹配组数据，再预读一组(firstIterNext+2)特征描述符数据进来
-					matches_final_result_dir_next = matches_final_result_dir_pre;
-					regions_provider_next = regions_provider_pre;
-					/*vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;*/
-
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-					char temp_firstIterPre[2] = { ' ','\0' };
-					temp_firstIterPre[0] = firstIterNext + 2 + 48;
-					std::string str_firstIterPre = temp_firstIterPre;
-
-					matches_final_result_dir_pre = sSfM_Data_FilenameDir_father + "/DJI_" + str_firstIterPre + "_build/";
-					if (matches_final_result_dir_pre.empty() || !stlplus::is_folder(matches_final_result_dir_pre))
+					else
 					{
-						std::cerr << "\nIt is an invalid output directory" << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Read SfM Scene (image view & intrinsics data)
-					//---------------------------------------
-					sfm_data_filename_pre = matches_final_result_dir_pre + "sfm_data.json";
-					//SfM_Data sfm_data_pre;
-					if (!Load(sfm_data_pre, sfm_data_filename_pre, ESfM_Data(VIEWS | INTRINSICS))) {
-						std::cerr << std::endl
-							<< "The input SfM_Data file \"" << sfm_data_filename_pre << "\" cannot be read." << std::endl;
-						return EXIT_FAILURE;
-					}
-					//---------------------------------------
-					// Load SfM Scene regions
-					//---------------------------------------
-					// Init the regions_type from the image describer file (used for image regions extraction)
-					using namespace openMVG::features;
-					const std::string sImage_describer_pre_temp = stlplus::create_filespec(matches_final_result_dir_pre, "image_describer", "json");
-					std::unique_ptr<Regions> regions_type_pre_temp = Init_region_type_from_file(sImage_describer_pre_temp);
-					if (!regions_type_pre_temp)
-					{
-						std::cerr << "Invalid: "
-							<< sImage_describer_pre_temp << " regions type file." << std::endl;
-						return EXIT_FAILURE;
-					}
-					// Load the corresponding view regions
-					//std::shared_ptr<Regions_Provider> regions_provider_pre;
-					// Default regions provider (load & store all regions in memory)
 
-					regions_provider_pre = std::make_shared<Regions_Provider>();
-					// Show the progress on the command line:
-					//C_Progress_display progress_pre;
 
-					if (!regions_provider_pre->load(sfm_data_pre, matches_final_result_dir_pre, regions_type_pre_temp, &progress_pre)) {
-						std::cerr << "Invalid regions." << std::endl;
-						return EXIT_FAILURE;
-					}
-
-					// Build some alias from SfM_Data Views data:
-					// - List views as a vector of filenames & image sizes
-					/*std::vector<std::string> vec_fileNames_pre;
-					std::vector<std::pair<size_t, size_t>> vec_imagesSize_pre;*/
-					{
-						vec_fileNames_pre.reserve(sfm_data_pre.GetViews().size());
-						vec_imagesSize_pre.reserve(sfm_data_pre.GetViews().size());
-						for (Views::const_iterator iter = sfm_data_pre.GetViews().begin();
-							iter != sfm_data_pre.GetViews().end();
-							++iter)
+						matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get(), sSfM_Data_FilenameDir_father);
+						//---------------------------------------
+						//-- Export putative matches
+						//---------------------------------------
+						if (!Save(map_PutativesMatches_itself, std::string(matches_final_result_dir + "/matches.putative_itself.bin")))
 						{
-							const View * v = iter->second.get();
-							vec_fileNames_pre.push_back(stlplus::create_filespec(sfm_data_pre.s_root_path,
-								v->s_Img_path));
-							vec_imagesSize_pre.push_back(std::make_pair(v->ui_width, v->ui_height));
+							std::cerr
+								<< "Cannot save computed matches in: "
+								<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
+							return EXIT_FAILURE;
 						}
-					}
-					//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-				}
-				else if (firstIterNext == group_count - 2)
-				{
-					//将当前组和待匹配组进行匹配
-					matchBetweenGroups
-					(
-						firstIter,
-						firstIterNext,
-						matches_final_result_dir,
-						matches_final_result_dir_next,
-						*regions_provider.get(),
-						*regions_provider_next.get(),
-						sSfM_Data_FilenameDir_father
-					);
-					//预读组数据赋值给待匹配组数据
-					matches_final_result_dir_next = matches_final_result_dir_pre;
-					regions_provider_next = regions_provider_pre;
-					/*vec_fileNames_next = vec_fileNames_pre;
-					vec_imagesSize_next = vec_imagesSize_pre;*/
-					//记得更新一些值
-					firstIterNext++;
-					//第一组和待匹配组进行匹配 matchBetweenGroups();
-					matchBetweenGroups
-					(
-						firstIter,
-						firstIterNext,
-						matches_final_result_dir,
-						matches_final_result_dir_next,
-						*regions_provider.get(),
-						*regions_provider_next.get(),
-						sSfM_Data_FilenameDir_father
-					);
-				}
-				else
-				{
-					std::cout << " error indexing when matching between groups" << std::endl;
-				}
-
-				//组内自我匹配
-				// If the matches already exists, reload them
-				PairWiseMatches map_PutativesMatches_itself;
-				std::string matches_result_filaname_itself = matches_final_result_dir + "/matches.putative_itself.bin";
-				if (stlplus::file_exists(matches_result_filaname_itself))
-				{
-					if (!(Load(map_PutativesMatches_itself, matches_result_filaname_itself)))
-					{
-						std::cerr << "Cannot load input matches file";
-						return EXIT_FAILURE;
-					}
-					std::cout << "\t PREVIOUS RESULTS LOADED;"
-						<< " #pair: " << map_PutativesMatches_itself.size() << std::endl;
-				}
-				else
-				{
-					
-
-					matchForThisGroup(map_PutativesMatches_itself, firstIter, matches_final_result_dir, *regions_provider.get(), sSfM_Data_FilenameDir_father);
-					//---------------------------------------
-					//-- Export putative matches
-					//---------------------------------------
-					if (!Save(map_PutativesMatches_itself, std::string(matches_final_result_dir + "/matches.putative_itself.bin")))
-					{
-						std::cerr
-							<< "Cannot save computed matches in: "
-							<< std::string(matches_final_result_dir + "/matches.putative_itself.bin");
-						return EXIT_FAILURE;
 					}
 				}
 			}
@@ -6015,28 +6018,28 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 				}
 			}
 			//read descriptions read descriptions read descriptions read descriptions read descriptions read descriptions
-			//将当前组和待匹配组进行匹配
-			matchBetweenGroups
-			(
-				firstIter,
-				firstIterNext,
-				matches_final_result_dir,
-				matches_final_result_dir_next,
-				*regions_provider.get(),
-				*regions_provider_next.get(),
-				sSfM_Data_FilenameDir_father
-			);
-			//最后两组数据匹配
-			matchBetweenGroups
-			(
-				firstIterNext,
-				firstIterNext+1,
-				matches_final_result_dir_next,
-				matches_final_result_dir_pre,
-				*regions_provider_next.get(),
-				*regions_provider_pre.get(),
-				sSfM_Data_FilenameDir_father
-			);
+			////将当前组和待匹配组进行匹配
+			//matchBetweenGroups
+			//(
+			//	firstIter,
+			//	firstIterNext,
+			//	matches_final_result_dir,
+			//	matches_final_result_dir_next,
+			//	*regions_provider.get(),
+			//	*regions_provider_next.get(),
+			//	sSfM_Data_FilenameDir_father
+			//);
+			////最后两组数据匹配
+			//matchBetweenGroups
+			//(
+			//	firstIterNext,
+			//	firstIterNext+1,
+			//	matches_final_result_dir_next,
+			//	matches_final_result_dir_pre,
+			//	*regions_provider_next.get(),
+			//	*regions_provider_pre.get(),
+			//	sSfM_Data_FilenameDir_father
+			//);
 			//最后三组
 			//firstIter
 			//firstIterNext
@@ -6157,7 +6160,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 			//记得更新一些值
 			firstIterNext++;
 			//第一组和最后一组待匹配组进行匹配 matchBetweenGroups();
-			matchBetweenGroups
+			/*matchBetweenGroups
 			(
 				firstIter,
 				firstIterNext,
@@ -6166,7 +6169,7 @@ int computeMatches::computeMatches(std::string sSfM_Data_FilenameDir_father) {
 				*regions_provider.get(),
 				*regions_provider_next.get(),
 				sSfM_Data_FilenameDir_father
-			);
+			);*/
 		}
 		else 
 		{
