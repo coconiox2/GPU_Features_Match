@@ -2,28 +2,22 @@
 #ifndef _COMPUTE_FEATURES_CU_H_
 #define _COMPUTE_FEATURES_CU_H_
 
+
 #include <Eigen/Dense>
 #include <omp.h>
-#include "openMVG/types.hpp"
 #include "openMVG/system/timer.hpp"
 #include "openMVG/stl/dynamic_bitset.hpp"
-#include "openMVG/matching/indMatch.hpp"
-#include "openMVG/matching/indMatch_utils.hpp"
-#include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 //#include "cascade_hasher_GPU.hpp"
 #include <string>
 
-using namespace openMVG;
+//using namespace openMVG::matching;
 
 namespace computeMatches {
-
-	using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-
-	const int group_count = 6;
-	const int block_count_per_group = 4;
-	const int image_count_per_block = 3;
-	const int image_count_per_group = 12;
+	const int group_count = 5;
+	const int block_count_per_group = 10;
+	const int image_count_per_block = 10;
+	const int image_count_per_group = 100;
 	const int descriptionDimension = 128;
 
 	const int openmp_thread_num = omp_get_max_threads();
@@ -66,8 +60,7 @@ namespace computeMatches {
 		ESSENTIAL_MATRIX = 1,
 		HOMOGRAPHY_MATRIX = 2,
 		ESSENTIAL_MATRIX_ANGULAR = 3,
-		ESSENTIAL_MATRIX_ORTHO = 4,
-		ESSENTIAL_MATRIX_UPRIGHT = 5
+		ESSENTIAL_MATRIX_ORTHO = 4
 	};
 	//匹配对模式
 	//详细匹配对、临近匹配对、从文件中读取的匹配对
@@ -84,41 +77,36 @@ namespace computeMatches {
 	/// - Export computed data
 	void test();
 
-	void computeZeroMeanDescriptors
-	(
-		Eigen::VectorXf &_zero_mean_descriptor,		//输出结果
-		const sfm::Regions_Provider & regions_provider,
-		const Pair_Set & pairs
-	);
-	void computeHashes
-	(
-		std::vector<Eigen::Map<BaseMat>> mat_I_vec,
-		std::map<IndexT, HashedDescriptions> hashed_base_,
-		const Eigen::VectorXf & zero_mean_descriptor,
-		// The number of bucket bits.
-		int nb_bits_per_bucket_,
-		// The number of dimensions of the Hash code.
-		int nb_hash_code_,
-		// The number of bucket groups.
-		int nb_bucket_groups_,
-		// The number of buckets in each group.
-		int nb_buckets_per_group_,
-		Eigen::MatrixXf primary_hash_projection_,
-		std::vector<Eigen::MatrixXf> secondary_hash_projection_
-	);
+	/*void computeCurrentGroupHashcode();
 
-	int computeMatchesGPU
-	(
-		const sfm::Regions_Provider & regions_provider,
-		Pair_Set &pairs,
-		openMVG::matching::PairWiseMatches &map_PutativesMatches,
-		C_Progress *my_progress_bar
-	);
-	int computeMatchesMVG
-	(
-		std::string sSfM_Data_FilenameDir_father
-	);
 	
+
+	void computeCurrentBlockHashcode
+	(
+		int secondIter,
+		std::vector <int> mat_I_cols,
+		float **hash_base_array_GPU,
+		CascadeHasher myCascadeHasher,
+		float *primary_hash_projection_data_device,
+		float **mat_I_point_array_GPU,
+		float **hash_base_array_CPU,
+		const float **mat_I_point_array_CPU,
+		std::map<openMVG::IndexT, HashedDescriptions> &hashed_base_,
+		float **secondary_hash_projection_data_GPU,
+		string sMatchesOutputDir_hash
+	);
+*/
+	//void getInputAndOutputDir(int argc, char **argv, std::string &sInputJpgDir_father, std::string &sSfM_Data_FilenameDir_father, std::string &sMatchesOutputDir_father);
+	void computeZeroMeanDescriptors(Eigen::VectorXf &zero_mean_descriptor, std::string sSfM_Data_FilenameDir_father, std::string sMatchesOutputDir_father);
+	int computeHashes(Eigen::VectorXf &_zero_mean_descriptor, std::string sSfM_Data_FilenameDir_father, std::string sMatchesOutputDir_father);
+
+	////////////////////////////
+	/*
+	compute Match
+	*/
+	///////////////////////////
+	int computeMatches(std::string sSfM_Data_FilenameDir_father);
+	int showMatchesOnImage(std::string sSfM_Data_FilenameDir_father, std::string sMatchesOutputDir_father);
 	
 
 }//namespace computeMatches
