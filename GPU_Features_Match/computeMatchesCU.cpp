@@ -1,4 +1,4 @@
-#include "utils.hpp"
+Ôªø#include "utils.hpp"
 #include "computeMatchesCU.h"
 //#include "Cascade_Hashing_Matcher_Regions_GPU.hpp"
 #include "cascade_hasher_GPU.hpp"
@@ -64,8 +64,8 @@ using namespace openMVG::sfm;
 using namespace openMVG::matching_image_collection;
 using namespace std;
 
-using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-
+//using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
 extern "C" int testCUDACPP(int a, int b);
 
@@ -76,122 +76,6 @@ void computeMatches::test() {
 	c = testCUDACPP(a, b);
 	printf("testCUDACPP result:%d", c);
 	printf("cpp test success\n");
-}
-
-void computeMatches::computeZeroMeanDescriptors
-(
-	Eigen::VectorXf &_zero_mean_descriptor,		// ‰≥ˆΩ·π˚
-	const sfm::Regions_Provider & regions_provider,
-	const Pair_Set & pairs
-) 
-{
-	std::cout << "Compute zero_mean_descriptor begin: " << std::endl;
-	system::Timer timeComputeZeroMeanDescriptor;
-
-	// Collect used view indexes
-	std::set<IndexT> used_index;
-	// Sort pairs according the first index to minimize later memory swapping
-	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-	Map_vectorT map_Pairs;
-	for (const auto & pair_idx : pairs)
-	{
-		map_Pairs[pair_idx.first].push_back(pair_idx.second);
-		used_index.insert(pair_idx.first);
-		used_index.insert(pair_idx.second);
-	}
-
-	//≥ı ºªØcascade hasher
-	CascadeHasherGPU zeroCascadeHasher;
-	zeroCascadeHasher.Init(descriptionDimension);
-
-	// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
-	Eigen::VectorXf zero_mean_descriptor;
-	{
-		Eigen::MatrixXf matForZeroMean;
-		for (int i = 0; i < used_index.size(); ++i)
-		{
-			std::set<IndexT>::const_iterator iter = used_index.begin();
-			std::advance(iter, i);
-			const IndexT I = *iter;
-			const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
-			const unsigned char * tabI =
-				reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
-			const size_t dimension = regionsI->DescriptorLength();
-			if (i == 0)
-			{
-				matForZeroMean.resize(dimension, used_index.size());
-				matForZeroMean.fill(0.0f);
-			}
-			if (regionsI->RegionCount() > 0)
-			{
-				Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
-				matForZeroMean.col(i) = zeroCascadeHasher.GetZeroMeanDescriptor(mat_I);
-			}
-		}
-		zero_mean_descriptor = zeroCascadeHasher.GetZeroMeanDescriptor(matForZeroMean);
-	}
-	std::cout << "Task (Compute zero_mean_descriptor) done in (s): " << timeComputeZeroMeanDescriptor.elapsed() << std::endl;
-}
-
-void computeMatches::computeHashes
-(
-	std::vector<Eigen::Map<BaseMat>> mat_I_vec,
-	std::map<IndexT, HashedDescriptions> hashed_base_,
-	const Eigen::VectorXf & zero_mean_descriptor,
-	// The number of bucket bits.
-	int nb_bits_per_bucket_,
-	// The number of dimensions of the Hash code.
-	int nb_hash_code_,
-	// The number of bucket groups.
-	int nb_bucket_groups_,
-	// The number of buckets in each group.
-	int nb_buckets_per_group_,
-	Eigen::MatrixXf primary_hash_projection_,
-	std::vector<Eigen::MatrixXf> secondary_hash_projection_
-) 
-{
-	CascadeHasherGPU cascadeHasher;
-	cascadeHasher.Init(descriptionDimension);
-
-
-	// Create hash codes for each description.
-	for(int i = 0; i < mat_I_vec.size(); i++)
-	{
-		// Allocate space for hash codes.
-		const typename Eigen::Map<BaseMat>::Index nbDescriptions = mat_I_vec[i].rows();
-		hashed_base_[i].hashed_desc.resize(nbDescriptions);
-		Eigen::VectorXf descriptor(mat_I_vec[i].cols());
-		for (int i = 0; i < nbDescriptions; ++i)
-		{
-			// Allocate space for each bucket id.
-			hashed_base_[i].hashed_desc[i].bucket_ids.resize(nb_bucket_groups_);
-
-			// Compute hash code.
-			auto& hash_code = hashed_base_[i].hashed_desc[i].hash_code;
-			hash_code = stl::dynamic_bitset(mat_I_vec[i].cols());
-			descriptor = mat_I_vec[i].row(i).template cast<float>();
-			descriptor -= zero_mean_descriptor;
-			const Eigen::VectorXf primary_projection = primary_hash_projection_ * descriptor;
-			for (int j = 0; j < nb_hash_code_; ++j)
-			{
-				hash_code[j] = primary_projection(j) > 0;
-			}
-
-			// Determine the bucket index for each group.
-			Eigen::VectorXf secondary_projection;
-			for (int j = 0; j < nb_bucket_groups_; ++j)
-			{
-				uint16_t bucket_id = 0;
-				secondary_projection = secondary_hash_projection_[j] * descriptor;
-
-				for (int k = 0; k < nb_bits_per_bucket_; ++k)
-				{
-					bucket_id = (bucket_id << 1) + (secondary_projection(k) > 0 ? 1 : 0);
-				}
-				hashed_base_[i].hashed_desc[i].bucket_ids[j] = bucket_id;
-			}
-		}
-	}
 }
 
 int computeMatches::computeMatchesGPU
@@ -218,23 +102,75 @@ int computeMatches::computeMatchesGPU
 		used_index.insert(pair_idx.second);
 	}
 
+	using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
 	// Init the cascade hasher
+	//Âú®‰∏Ä‰∏™ËäÇÁÇπ‰∏äÂè™Â£∞ÊòéËøô‰∏ÄÊ¨°ÔºåÁªôÊâÄÊúâÂåπÈÖçÂØπ‰ΩøÁî®
 	CascadeHasherGPU cascade_hasher;
-	cascade_hasher.Init(descriptionDimension);
+	if (!used_index.empty())
+	{
+		const IndexT I = *used_index.begin();
+		const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+		const size_t dimension = regionsI->DescriptorLength();
+		cascade_hasher.Init(dimension);
+	}
+
+	////ÂÖàÂ∞Üprimary_projectionÂíåsecondary_projection‰∏ä‰º†Âà∞GPU‰∏ä
+	//size_t primary_hash_projection_size = (cascade_hasher.primary_hash_projection_.rows()) * (cascade_hasher.primary_hash_projection_.cols());
+	////
+	//const float *primary_hash_projection_CPU = cascade_hasher.primary_hash_projection_.data();
+	//float *primary_hash_projection_data_GPU;
+	//cudaMalloc((void **)&primary_hash_projection_data_GPU, sizeof(float) * primary_hash_projection_size);
+	//cudaMemcpy(primary_hash_projection_data_GPU, primary_hash_projection_CPU, sizeof(float) * primary_hash_projection_size, cudaMemcpyHostToDevice);
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////
+	////myCascadeHasher.secondary_hash_projection_.size() = 6
+	////size_t secondary_hash_projection_size = cascade_hasher.secondary_hash_projection_.size();
+
+	//float *secondary_hash_projection_data_CPU[6];
+	//float *secondary_hash_projection_data_GPU[6];
+	//for (int i = 0; i < cascade_hasher.nb_bucket_groups_; i++) {
+	//	secondary_hash_projection_data_CPU[i] = cascade_hasher.secondary_hash_projection_[i].data();
+	//	size_t secondary_hash_projection_per_size = cascade_hasher.secondary_hash_projection_[i].rows() *
+	//		cascade_hasher.secondary_hash_projection_[i].cols();
+	//	cudaMalloc((void **)&secondary_hash_projection_data_GPU[i], sizeof(float) * secondary_hash_projection_per_size);
+	//	cudaMemcpy(secondary_hash_projection_data_GPU[i], secondary_hash_projection_data_CPU[i],
+	//		sizeof(float) * secondary_hash_projection_per_size, cudaMemcpyHostToDevice);
+	//}
 
 	std::map<IndexT, HashedDescriptions> hashed_base_;
-	
-	//º∆À„¡„∫Õ∆Ωæ˘√Ë ˆ∑˚
-	Eigen::VectorXf zero_mean_descriptor;
-	computeMatches::computeZeroMeanDescriptors(zero_mean_descriptor, regions_provider, pairs);
 
-	//¥”ƒ⁄¥Ê÷–“ª¥Œ–‘∂¡≥ˆ¿¥À˘”–µƒπ˛œ£√Ë ˆ∑˚ ˝æ›£¨”√”⁄≤¢––µ˜”√GPUΩ¯––º∆À„
-	std::vector<Eigen::Map<BaseMat>> mat_I_vec;
+	// Compute the zero mean descriptor that will be used for hashing (one for all the image regions)
+	Eigen::VectorXf zero_mean_descriptor;
+	{
+		Eigen::MatrixXf matForZeroMean;
+		for (int i = 0; i < used_index.size(); ++i)
+		{
+			std::set<IndexT>::const_iterator iter = used_index.begin();
+			std::advance(iter, i);
+			const IndexT I = *iter;
+			const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+			const unsigned char * tabI =
+				reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
+			const size_t dimension = regionsI->DescriptorLength();
+			if (i == 0)
+			{
+				matForZeroMean.resize(used_index.size(), dimension);
+				matForZeroMean.fill(0.0f);
+			}
+			if (regionsI->RegionCount() > 0)
+			{
+				Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, regionsI->RegionCount(), dimension);
+				matForZeroMean.row(i) = cascade_hasher.GetZeroMeanDescriptor(mat_I);
+			}
+		}
+		zero_mean_descriptor = cascade_hasher.GetZeroMeanDescriptor(matForZeroMean);
+	}
+
 	// Index the input regions
 #ifdef OPENMVG_USE_OPENMP
 #pragma omp parallel for schedule(dynamic)
 #endif
-
 	for (int i = 0; i < used_index.size(); ++i)
 	{
 		std::set<IndexT>::const_iterator iter = used_index.begin();
@@ -245,53 +181,137 @@ int computeMatches::computeMatchesGPU
 			reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
 		const size_t dimension = regionsI->DescriptorLength();
 
-		Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, dimension, regionsI->RegionCount());
-
-		mat_I_vec[i] = std::move(mat_I);
+		Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, regionsI->RegionCount(), dimension);
+#ifdef OPENMVG_USE_OPENMP
+#pragma omp critical
+#endif
+		{
+			hashed_base_[I] =
+				std::move(cascade_hasher.CreateHashedDescriptions(mat_I, zero_mean_descriptor));
+		}
 	}
 
-	computeMatches::computeHashes
-	(
-		mat_I_vec, 
-		hashed_base_, 
-		zero_mean_descriptor, 
-		cascade_hasher.nb_bits_per_bucket_,
-		cascade_hasher.nb_hash_code_,
-		cascade_hasher.nb_bucket_groups_,
-		cascade_hasher.nb_buckets_per_group_,
-		cascade_hasher.primary_hash_projection_,
-		cascade_hasher.secondary_hash_projection_
-	);
+	// Perform matching between all the pairs
+	for (const auto & pair_it : map_Pairs)
+	{
+		if (my_progress_bar->hasBeenCanceled())
+			break;
+		const IndexT I = pair_it.first;
+		const std::vector<IndexT> & indexToCompare = pair_it.second;
+
+		const std::shared_ptr<features::Regions> regionsI = regions_provider.get(I);
+		if (regionsI->RegionCount() == 0)
+		{
+			(*my_progress_bar) += indexToCompare.size();
+			continue;
+		}
+
+		const std::vector<features::PointFeature> pointFeaturesI = regionsI->GetRegionsPositions();
+		const unsigned char * tabI =
+			reinterpret_cast<const unsigned char*>(regionsI->DescriptorRawData());
+		const size_t dimension = regionsI->DescriptorLength();
+		Eigen::Map<BaseMat> mat_I((unsigned char*)tabI, regionsI->RegionCount(), dimension);
+
+#ifdef OPENMVG_USE_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+		for (int j = 0; j < (int)indexToCompare.size(); ++j)
+		{
+			if (my_progress_bar->hasBeenCanceled())
+				continue;
+			const size_t J = indexToCompare[j];
+			const std::shared_ptr<features::Regions> regionsJ = regions_provider.get(J);
+
+			if (regionsI->Type_id() != regionsJ->Type_id())
+			{
+				++(*my_progress_bar);
+				continue;
+			}
+
+			// Matrix representation of the query input data;
+			const unsigned char * tabJ = reinterpret_cast<const unsigned char*>(regionsJ->DescriptorRawData());
+			Eigen::Map<BaseMat> mat_J((unsigned char*)tabJ, regionsJ->RegionCount(), dimension);
+
+			IndMatches pvec_indices;
+			using ResultType = typename Accumulator<unsigned char>::Type;
+			std::vector<ResultType> pvec_distances;
+			pvec_distances.reserve(regionsJ->RegionCount() * 2);
+			pvec_indices.reserve(regionsJ->RegionCount() * 2);
+
+			// Match the query descriptors to the database
+			cascade_hasher.Match_HashedDescriptions<BaseMat, ResultType>(
+				hashed_base_[J], mat_J,
+				hashed_base_[I], mat_I,
+				&pvec_indices, &pvec_distances);
+
+			std::vector<int> vec_nn_ratio_idx;
+			// Filter the matches using a distance ratio test:
+			//   The probability that a match is correct is determined by taking
+			//   the ratio of distance from the closest neighbor to the distance
+			//   of the second closest.
+			matching::NNdistanceRatio(
+				pvec_distances.begin(), // distance start
+				pvec_distances.end(),   // distance end
+				2, // Number of neighbor in iterator sequence (minimum required 2)
+				vec_nn_ratio_idx, // output (indices that respect the distance Ratio)
+				Square(fDistRatio));
+
+			matching::IndMatches vec_putative_matches;
+			vec_putative_matches.reserve(vec_nn_ratio_idx.size());
+			for (size_t k = 0; k < vec_nn_ratio_idx.size(); ++k)
+			{
+				const size_t index = vec_nn_ratio_idx[k];
+				vec_putative_matches.emplace_back(pvec_indices[index * 2].j_, pvec_indices[index * 2].i_);
+			}
+
+			// Remove duplicates
+			matching::IndMatch::getDeduplicated(vec_putative_matches);
+
+			// Remove matches that have the same (X,Y) coordinates
+			const std::vector<features::PointFeature> pointFeaturesJ = regionsJ->GetRegionsPositions();
+			matching::IndMatchDecorator<float> matchDeduplicator(vec_putative_matches,
+				pointFeaturesI, pointFeaturesJ);
+			matchDeduplicator.getDeduplicated(vec_putative_matches);
+
+#ifdef OPENMVG_USE_OPENMP
+#pragma omp critical
+#endif
+			{
+				if (!vec_putative_matches.empty())
+				{
+					map_PutativesMatches.insert(
+					{
+						{ I,J },
+						std::move(vec_putative_matches)
+					});
+				}
+			}
+			++(*my_progress_bar);
+		}
+	}
 }
 
-int computeMatches::computeMatchesMVG(std::string sSfM_Data_FilenameDir_father)
+
+int computeMatches::computeMatchesMVG
+(
+	std::string sSfM_Data_Filename, 
+	std::string sMatchesDirectory, 
+	std::string sPredefinedPairList,
+	std::string sGeometricModel
+)
+
 {
-	std::string sSfM_Data_Filename = sSfM_Data_FilenameDir_father + "/sfm_data.json";
-	std::string sMatchesDirectory = sSfM_Data_FilenameDir_father;
-	std::string sGeometricModel = "e";
+	/*std::string sSfM_Data_Filename = sSfM_Data_FilenameDir_father + "/sfm_data.json";
+	std::string sMatchesDirectory = sSfM_Data_FilenameDir_father;*/
+	//std::string sGeometricModel = "e";
 	float fDistRatio = 0.8f;
 	int iMatchingVideoMode = -1;
-	std::string sPredefinedPairList = sSfM_Data_FilenameDir_father + "/pair_list.txt";
+	//std::string sPredefinedPairList = sSfM_Data_FilenameDir_father + "/pair_list.txt";
 	std::string sNearestMatchingMethod = "AUTO";
 	bool bForce = false;
 	bool bGuided_matching = false;
 	int imax_iteration = 2048;
 	unsigned int ui_max_cache_size = 0;
-
-	
-
-	std::cout << " You called : " << "\n"
-		<< "--input_file " << sSfM_Data_Filename << "\n"
-		<< "--out_dir " << sMatchesDirectory << "\n"
-		<< "Optional parameters:" << "\n"
-		<< "--force " << bForce << "\n"
-		<< "--ratio " << fDistRatio << "\n"
-		<< "--geometric_model " << sGeometricModel << "\n"
-		<< "--video_mode_matching " << iMatchingVideoMode << "\n"
-		<< "--pair_list " << sPredefinedPairList << "\n"
-		<< "--nearest_matching_method " << sNearestMatchingMethod << "\n"
-		<< "--guided_matching " << bGuided_matching << "\n"
-		<< "--cache_size " << ((ui_max_cache_size == 0) ? "unlimited" : std::to_string(ui_max_cache_size)) << std::endl;
 
 	EPairMode ePairmode = (iMatchingVideoMode == -1) ? PAIR_EXHAUSTIVE : PAIR_CONTIGUOUS;
 

@@ -18,7 +18,7 @@ using namespace openMVG;
 
 namespace computeMatches {
 
-	using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+	using BaseMat = Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
 	const int group_count = 6;
 	const int block_count_per_group = 4;
@@ -26,6 +26,7 @@ namespace computeMatches {
 	const int image_count_per_group = 12;
 	const int descriptionDimension = 128;
 
+	const float fDistRatio = 0.8f;
 	const int openmp_thread_num = omp_get_max_threads();
 	/*const std::string sSfM_Data_FilenameDir_father = stlplus::folder_up(imageInputDir, 4) +
 		"/imageData/tianjin/";
@@ -116,7 +117,10 @@ namespace computeMatches {
 	);
 	int computeMatchesMVG
 	(
-		std::string sSfM_Data_FilenameDir_father
+		std::string sSfM_Data_Filename,
+		std::string sMatchesDirectory,
+		std::string sPredefinedPairList,
+		std::string sGeometricModel
 	);
 	
 	

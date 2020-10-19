@@ -7,6 +7,11 @@
 #include "device_launch_parameters.h"
 #include "cublas_v2.h"
 
+#define BLOCK_NUM 32   //块数量
+#define THREAD_NUM 256 // 每个块中的线程数
+#define R_SIZE BLOCK_NUM * THREAD_NUM
+#define M_SIZE R_SIZE * R_SIZE
+
 extern "C" 
 int testCUDACPP(int a,int b) {
 	int c = a + b;
@@ -24,6 +29,19 @@ __global__ void EUGPU_minus(float *desGPU1, float *desGPU2, float *desGPU1MinusD
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	desGPU1MinusDesGPU2[i] = desGPU1[i] - desGPU2[i];
 }
+
+//__global__ void GPU_Mul(float *primary_GPU, float *descriptor_GPU, float *result_GPU)
+//{
+//	const int bid = blockIdx.x;
+//	const int tid = threadIdx.x;
+//	// 每个线程计算一行
+//	const int row = bid * THREAD_NUM + tid;
+//	for (int c = 0; c < R_SIZE; c++) {
+//		for (int n = 0; n < R_SIZE; n++) {
+//			result_GPU[row*R_SIZE + c] += primary_GPU[row*R_SIZE + n] * descriptor_GPU[n*R_SIZE + c];
+//		}
+//	}
+//}
 
 extern "C"
 float computeEuclideanDistance
@@ -92,3 +110,25 @@ float computeEuclideanDistance
 	return result;
 }
 
+//extern "C"
+//float primaryMulDescriptor
+//(
+//	float * descriptor,
+//	float * result,
+//	size_t size
+//) 
+//{
+//	float *descriptor_GPU;
+//	cudaMalloc((void**)&descriptor_GPU, sizeof(float) * size);
+//	cudaMemcpy(descriptor_GPU, descriptor, sizeof(float) * size, cudaMemcpyHostToDevice);
+//	
+//	float *result_GPU;
+//	cudaMalloc((void**)&result_GPU, sizeof(float) * size);
+//	//cudaMemcpy(desGPU2, descriptionDataFloat2, sizeof(float) * size, cudaMemcpyHostToDevice);
+//
+//	dim3 dimBlock(1024);
+//	dim3 dimGrid(256);
+//
+//	cudaThreadSynchronize();
+//	EUGPU_square << <dimGrid, dimBlock >> > (desGPU1MinusDesGPU2, desGPU1MinusDesGPU2Square);
+//}
